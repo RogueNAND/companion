@@ -382,6 +382,9 @@ const ConnectionConfigFields = observer(function ConnectionConfigFields({
 				const isVisible = !fn || !!fn(configData.config)
 				if (!isVisible) return null
 
+				// This was removed from the types, but can still exist
+				const fieldWidth = 'width' in fieldInfo ? Number(fieldInfo.width) : 12
+
 				const isSecret = isConfigFieldSecret(fieldInfo)
 				if (isSecret) {
 					return (
@@ -404,7 +407,7 @@ const ConnectionConfigFields = observer(function ConnectionConfigFields({
 							</CCol>
 						</React.Fragment>
 					)
-				} else if (fieldInfo.type === 'static-text') {
+				} else if (fieldInfo.type === 'static-text' && (!fieldWidth || fieldWidth > 6)) {
 					if (!fieldInfo.label && !fieldInfo.value) return null // Skip rendering the fields used to force alignment
 
 					return (
