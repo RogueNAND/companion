@@ -385,32 +385,8 @@ export class EntityManager {
 			// If we don't know what fields need parsing, we can't do anything
 			return { parsedOptions: options, referencedVariableIds: new Set() }
 
-		const parsedOptions: OptionsObject = {}
-		const referencedVariableIds = new Set<string>()
-
 		const parser = this.#controlsController.createVariablesAndExpressionParser(controlId, null)
-
-		for (const field of entityDefinition.options) {
-			if (field.type !== 'textinput' || !field.useVariables) {
-				// Field doesn't support variables, pass unchanged
-				parsedOptions[field.id] = options[field.id]
-				continue
-			}
-
-			// Field needs parsing
-			// Note - we don't need to care about the granularity given in `useVariables`,
-			const parseResult = parser.parseVariables(String(options[field.id]))
-			parsedOptions[field.id] = parseResult.text
-
-			// Track the variables referenced in this field
-			if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
-				for (const variable of parseResult.variableIds) {
-					referencedVariableIds.add(variable)
-				}
-			}
-		}
-
-		return { parsedOptions, referencedVariableIds }
+		return parser.parseEntityOptions(entityDefinition, options)
 	}
 
 	/**

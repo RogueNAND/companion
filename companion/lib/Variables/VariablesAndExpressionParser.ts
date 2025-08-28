@@ -10,6 +10,8 @@ import {
 } from './Util.js'
 import { isInternalLogicFeedback, type ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
+import type { ClientEntityDefinition } from '@companion-app/shared/Model/EntityDefinitionModel.js'
+import type { OptionsObject } from '@companion-module/base/dist/util.js'
 
 /**
  * A class to parse and execute expressions with variables
@@ -80,5 +82,46 @@ export class VariablesAndExpressionParser {
 	 */
 	parseVariables(str: string): ParseVariablesResult {
 		return parseVariablesInString(str, this.#rawVariableValues, this.#valueCacheAccessor)
+	}
+
+	/**
+	 * Parse any variables in the options object for an entity.
+	 * Note: this will drop any options that are not defined in the entity definition.
+	 */
+	parseEntityOptions(
+		entityDefinition: ClientEntityDefinition | undefined,
+		options: OptionsObject
+	): {
+		parsedOptions: OptionsObject
+		referencedVariableIds: Set<string>
+	} {
+		if (!entityDefinition)
+			// If we don't know what fields need parsing, we can't do anything
+			return { parsedOptions: options, referencedVariableIds: new Set() }
+
+		const parsedOptions: OptionsObject = {}
+		const referencedVariableIds = new Set<string>()
+
+		for (const field of entityDefinition.options) {
+			if (field.type !== 'textinput' || !field.useVariables) {
+				// Field doesn't support variables, pass unchanged
+				parsedOptions[field.id] = options[field.id]
+				continue
+			}
+
+			// Field needs parsing
+			// Note - we don't need to care about the granularity given in `useVariables`,
+			const parseResult = this.parseVariables(String(options[field.id]))
+			parsedOptions[field.id] = parseResult.text
+
+			// Track the variables referenced in this field
+			if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+				for (const variable of parseResult.variableIds) {
+					referencedVariableIds.add(variable)
+				}
+			}
+		}
+
+		return { parsedOptions, referencedVariableIds }
 	}
 }
