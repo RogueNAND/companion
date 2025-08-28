@@ -13,13 +13,13 @@ import LogController from '../Log/Controller.js'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
 	InternalFeedbackDefinition,
 	InternalActionDefinition,
 	ExecuteFeedbackResultWithReferences,
 	InternalModuleFragmentEvents,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { CompanionInputFieldDropdown } from '@companion-module/base'
 import {
@@ -298,7 +298,7 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 	/**
 	 * Get an updated value for a feedback
 	 */
-	executeFeedback(feedback: FeedbackEntityModelExt): boolean | ExecuteFeedbackResultWithReferences | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): boolean | ExecuteFeedbackResultWithReferences | void {
 		if (feedback.definitionId == 'variable_value') {
 			const result = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
 				`$(${feedback.options.variable})`,
@@ -325,8 +325,11 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 
 			return compareValues(feedback.options.op, result1.text, result2.text)
 		} else if (feedback.definitionId == 'check_expression') {
-			const parser = this.#controlsController.createVariablesAndExpressionParser(feedback.controlId, null)
-			const res = parser.executeExpression(feedback.options.expression, 'boolean')
+			const res = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
+				String(feedback.options.expression),
+				feedback,
+				'boolean'
+			)
 
 			this.#variableSubscriptions.set(feedback.id, { controlId: feedback.controlId, variables: res.variableIds })
 
@@ -339,8 +342,11 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 				return false
 			}
 		} else if (feedback.definitionId == 'expression_value') {
-			const parser = this.#controlsController.createVariablesAndExpressionParser(feedback.controlId, null)
-			const res = parser.executeExpression(feedback.options.expression, undefined)
+			const res = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
+				String(feedback.options.expression),
+				feedback,
+				undefined
+			)
 
 			if (res.ok) {
 				return {
@@ -368,7 +374,7 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 
 	#fetchLocationAndControlId(
 		options: Record<string, any>,
-		extras: RunActionExtras | FeedbackEntityModelExt,
+		extras: RunActionExtras | FeedbackForInternalExecution,
 		useVariableFields = false
 	): {
 		theControlId: string | null

@@ -13,11 +13,16 @@ import type { ClientEntityDefinition } from '@companion-app/shared/Model/EntityD
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { ActionRunner } from '../Controls/ActionRunner.js'
 import type { EventEmitter } from 'events'
+import { OptionsObject } from '@companion-module/base/dist/util.js'
 
-export interface FeedbackEntityModelExt extends FeedbackEntityModel {
+export interface FeedbackForInternalExecution {
 	controlId: string
 	location: ControlLocation | undefined
-	referencedVariables: string[] | null
+
+	id: string
+	definitionId: string
+
+	options: OptionsObject
 }
 
 export type InternalVisitor = VisitorReferencesCollectorVisitor | VisitorReferencesUpdaterVisitor
@@ -72,7 +77,7 @@ export interface InternalModuleFragment extends EventEmitter<InternalModuleFragm
 	 * Get an updated value for a feedback
 	 */
 	executeFeedback?: (
-		feedback: FeedbackEntityModelExt
+		feedback: FeedbackForInternalExecution
 	) => CompanionFeedbackButtonStyleResult | boolean | ExecuteFeedbackResultWithReferences | void
 
 	feedbackUpgrade?: (feedback: FeedbackEntityModel, controlId: string) => FeedbackEntityModel | void
@@ -100,10 +105,15 @@ export type InternalActionDefinition = SetOptional<
 		ClientEntityDefinition,
 		'entityType' | 'showInvert' | 'feedbackType' | 'feedbackStyle' | 'hasLifecycleFunctions'
 	>,
-	'hasLearn' | 'learnTimeout' | 'showButtonPreview' | 'supportsChildGroups' | 'optionsToIgnoreForSubscribe'
+	| 'hasLearn'
+	| 'learnTimeout'
+	| 'showButtonPreview'
+	| 'supportsChildGroups'
+	| 'optionsToIgnoreForSubscribe'
+	| 'internalUsesAutoParser'
 >
 
 export type InternalFeedbackDefinition = SetOptional<
 	Omit<ClientEntityDefinition, 'entityType' | 'hasLifecycleFunctions' | 'optionsToIgnoreForSubscribe'>,
-	'hasLearn' | 'learnTimeout' | 'showButtonPreview' | 'supportsChildGroups'
+	'hasLearn' | 'learnTimeout' | 'showButtonPreview' | 'supportsChildGroups' | 'internalUsesAutoParser'
 >

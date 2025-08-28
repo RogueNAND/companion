@@ -16,12 +16,12 @@ import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { CompanionFeedbackButtonStyleResult, CompanionVariableValues } from '@companion-module/base'
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
@@ -326,65 +326,65 @@ export class InternalInstance extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	}
 
-	executeFeedback(feedback: FeedbackEntityModelExt): CompanionFeedbackButtonStyleResult | boolean | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): CompanionFeedbackButtonStyleResult | boolean | void {
 		if (feedback.definitionId === 'instance_status') {
 			if (feedback.options.instance_id == 'all') {
 				if (this.#instancesError > 0) {
 					return {
-						color: feedback.options.error_fg,
-						bgcolor: feedback.options.error_bg,
+						color: feedback.options.error_fg as any,
+						bgcolor: feedback.options.error_bg as any,
 					}
 				}
 
 				if (this.#instancesWarning > 0) {
 					return {
-						color: feedback.options.warning_fg,
-						bgcolor: feedback.options.warning_bg,
+						color: feedback.options.warning_fg as any,
+						bgcolor: feedback.options.warning_bg as any,
 					}
 				}
 
 				return {
-					color: feedback.options.ok_fg,
-					bgcolor: feedback.options.ok_bg,
+					color: feedback.options.ok_fg as any,
+					bgcolor: feedback.options.ok_bg as any,
 				}
 			}
 
-			const cur_instance = this.#instanceController.getConnectionStatus(feedback.options.instance_id)
+			const cur_instance = this.#instanceController.getConnectionStatus(String(feedback.options.instance_id))
 			if (cur_instance !== undefined) {
 				switch (cur_instance.category) {
 					case 'error':
 						return {
-							color: feedback.options.error_fg,
-							bgcolor: feedback.options.error_bg,
+							color: feedback.options.error_fg as any,
+							bgcolor: feedback.options.error_bg as any,
 						}
 					case 'warning':
 						return {
-							color: feedback.options.warning_fg,
-							bgcolor: feedback.options.warning_bg,
+							color: feedback.options.warning_fg as any,
+							bgcolor: feedback.options.warning_bg as any,
 						}
 					case 'good':
 						return {
-							color: feedback.options.ok_fg,
-							bgcolor: feedback.options.ok_bg,
+							color: feedback.options.ok_fg as any,
+							bgcolor: feedback.options.ok_bg as any,
 						}
 					default:
 						return {
-							color: feedback.options.disabled_fg,
-							bgcolor: feedback.options.disabled_bg,
+							color: feedback.options.disabled_fg as any,
+							bgcolor: feedback.options.disabled_bg as any,
 						}
 				}
 			}
 			// disabled has no 'status' entry
 			return {
-				color: feedback.options.disabled_fg,
-				bgcolor: feedback.options.disabled_bg,
+				color: feedback.options.disabled_fg as any,
+				bgcolor: feedback.options.disabled_bg as any,
 			}
 		} else if (feedback.definitionId === 'instance_custom_state') {
 			const selected_status = this.#instanceStatuses[String(feedback.options.instance_id)]?.category ?? null
 
 			return selected_status == feedback.options.state
 		} else if (feedback.definitionId === 'connection_collection_enabled') {
-			const state = this.#instanceController.collections.isCollectionEnabled(feedback.options.collection_id)
+			const state = this.#instanceController.collections.isCollectionEnabled(String(feedback.options.collection_id))
 			const target = feedback.options.enable == 'true'
 			return state == target
 		}

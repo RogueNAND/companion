@@ -715,6 +715,7 @@ export class SocketEventsHandler {
 
 				feedbackType: null,
 				feedbackStyle: undefined,
+				internalUsesAutoParser: false,
 			} satisfies Complete<ClientEntityDefinition>
 		}
 
@@ -751,6 +752,7 @@ export class SocketEventsHandler {
 
 				showButtonPreview: false,
 				supportsChildGroups: [],
+				internalUsesAutoParser: false,
 			} satisfies Complete<ClientEntityDefinition>
 		}
 

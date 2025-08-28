@@ -6,7 +6,7 @@ import LogController, { type Logger } from '../Log/Controller.js'
 import type { ParseVariablesResult } from '../Variables/Util.js'
 import type { CompanionVariableValues } from '@companion-module/base'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
-import type { FeedbackEntityModelExt } from './Types.js'
+import type { FeedbackForInternalExecution } from './Types.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
 
@@ -187,7 +187,7 @@ export class InternalModuleUtils {
 	 */
 	executeExpressionForInternalActionOrFeedback(
 		str: string,
-		extras: RunActionExtras | FeedbackEntityModelExt,
+		extras: RunActionExtras | FeedbackForInternalExecution,
 		requiredType?: string
 		// injectedVariableValues?: CompanionVariableValues
 	): ExecuteExpressionResult {
@@ -213,7 +213,7 @@ export class InternalModuleUtils {
 	 */
 	parseVariablesForInternalActionOrFeedback(
 		str: string,
-		extras: RunActionExtras | FeedbackEntityModelExt
+		extras: RunActionExtras | FeedbackForInternalExecution
 		// injectedVariableValues?: VariablesCache
 	): ParseVariablesResult {
 		const injectedVariableValuesComplete = {
@@ -233,7 +233,7 @@ export class InternalModuleUtils {
 	 *
 	 */
 	parseInternalControlReferenceForActionOrFeedback(
-		extras: RunActionExtras | FeedbackEntityModelExt,
+		extras: RunActionExtras | FeedbackForInternalExecution,
 		options: Record<string, any>,
 		useVariableFields: boolean
 	): {

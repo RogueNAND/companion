@@ -15,9 +15,9 @@ import { InternalModuleUtils } from './Util.js'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import type { CompanionVariableValue } from '@companion-module/base'
@@ -35,7 +35,7 @@ import {
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { assertNever } from '@companion-app/shared/Util.js'
 import { ClientEntityDefinition } from '@companion-app/shared/Model/EntityDefinitionModel.js'
-import { Complete } from '@companion-module/base/dist/util.js'
+import { Complete, OptionsObject } from '@companion-module/base/dist/util.js'
 import { InternalSystem } from './System.js'
 import type { VariableValueEntry } from '../Variables/Values.js'
 import type { InstanceController } from '../Instance/Controller.js'
@@ -51,6 +51,15 @@ import { InternalSurface } from './Surface.js'
 import { InternalTriggers } from './Triggers.js'
 import { InternalVariables } from './Variables.js'
 import type { DataUserConfig } from '../Data/UserConfig.js'
+import { ControlLocation } from '@companion-app/shared/Model/Common.js'
+
+interface FeedbackEntityState {
+	controlId: string
+	location: ControlLocation | undefined
+	referencedVariables: Set<string> | null
+
+	entityModel: FeedbackEntityModel
+}
 
 export class InternalController {
 	readonly #logger = LogController.createLogger('Internal/Controller')
@@ -60,7 +69,7 @@ export class InternalController {
 	readonly #instanceDefinitions: InstanceDefinitions
 	readonly #variablesController: VariablesController
 
-	readonly #feedbacks = new Map<string, FeedbackEntityModelExt>()
+	readonly #feedbacks = new Map<string, FeedbackEntityState>()
 
 	readonly #buildingBlocksFragment: InternalBuildingBlocks
 	readonly #fragments: InternalModuleFragment[]
@@ -239,11 +248,12 @@ export class InternalController {
 
 		const location = this.#pageStore.getLocationOfControlId(controlId)
 
-		const cloned: FeedbackEntityModelExt = {
-			...cloneDeep(feedback),
+		const cloned: FeedbackEntityState = {
 			controlId,
 			location,
 			referencedVariables: null,
+
+			entityModel: cloneDeep(feedback),
 		}
 		this.#feedbacks.set(feedback.id, cloned)
 
@@ -280,25 +290,58 @@ export class InternalController {
 	/**
 	 * Get an updated value for a feedback
 	 */
-	#feedbackGetValue(feedback: FeedbackEntityModelExt): any {
-		for (const fragment of this.#fragments) {
-			if ('executeFeedback' in fragment && typeof fragment.executeFeedback === 'function') {
-				let value: ReturnType<Required<InternalModuleFragment>['executeFeedback']> | undefined
-				try {
-					value = fragment.executeFeedback(feedback)
-				} catch (e: any) {
-					this.#logger.silly(`Feedback check failed: ${JSON.stringify(feedback)} - ${e?.message ?? e} ${e?.stack}`)
+	#feedbackGetValue(feedback: FeedbackEntityState): any {
+		const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
+			EntityModelType.Feedback,
+			'internal',
+			feedback.entityModel.definitionId
+		)
+
+		// Parse the otpions if enabled
+		const { parsedOptions, referencedVariableIds } = entityDefinition?.internalUsesAutoParser
+			? this.#controlsController
+					.createVariablesAndExpressionParser(feedback.controlId, null)
+					.parseEntityOptions(entityDefinition, feedback.entityModel.options)
+			: { parsedOptions: feedback.entityModel.options as OptionsObject, referencedVariableIds: new Set<string>() }
+
+		const executionFeedback: Complete<FeedbackForInternalExecution> = {
+			controlId: feedback.controlId,
+			location: feedback.location,
+
+			options: parsedOptions,
+
+			id: feedback.entityModel.id,
+			definitionId: feedback.entityModel.definitionId,
+		}
+		feedback.referencedVariables = referencedVariableIds
+
+		try {
+			for (const fragment of this.#fragments) {
+				if ('executeFeedback' in fragment && typeof fragment.executeFeedback === 'function') {
+					let value: ReturnType<Required<InternalModuleFragment>['executeFeedback']> | undefined
+					try {
+						value = fragment.executeFeedback(executionFeedback)
+					} catch (e: any) {
+						this.#logger.silly(
+							`Feedback check failed: ${JSON.stringify(executionFeedback)} - ${e?.message ?? e} ${e?.stack}`
+						)
+					}
+
+					if (value && typeof value === 'object' && 'referencedVariables' in value) {
+						for (const variable of value.referencedVariables) {
+							feedback.referencedVariables.add(variable)
+						}
+
+						return value.value
+					} else if (value !== undefined) {
+						return value
+					}
 				}
-
-				if (value && typeof value === 'object' && 'referencedVariables' in value) {
-					feedback.referencedVariables = value.referencedVariables
-
-					return value.value
-				} else if (value !== undefined) {
-					feedback.referencedVariables = null
-
-					return value
-				}
+			}
+		} finally {
+			// If there are no referenced variables, set to null
+			if (feedback.referencedVariables.size === 0) {
+				feedback.referencedVariables = null
 			}
 		}
 
@@ -433,7 +476,7 @@ export class InternalController {
 		const newValues: NewFeedbackValue[] = []
 
 		for (const [id, feedback] of this.#feedbacks.entries()) {
-			if (typesSet.size === 0 || typesSet.has(feedback.definitionId)) {
+			if (typesSet.size === 0 || typesSet.has(feedback.entityModel.definitionId)) {
 				newValues.push({
 					id: id,
 					controlId: feedback.controlId,
@@ -487,6 +530,8 @@ export class InternalController {
 						feedbackType: null,
 						feedbackStyle: undefined,
 
+						internalUsesAutoParser: action.internalUsesAutoParser ?? false,
+
 						optionsToIgnoreForSubscribe: action.optionsToIgnoreForSubscribe || [],
 					} satisfies Complete<ClientEntityDefinition>
 				}
@@ -513,6 +558,8 @@ export class InternalController {
 						entityType: EntityModelType.Feedback,
 						showButtonPreview: feedback.showButtonPreview ?? false,
 						supportsChildGroups: feedback.supportsChildGroups ?? [],
+
+						internalUsesAutoParser: feedback.internalUsesAutoParser ?? false,
 
 						optionsToIgnoreForSubscribe: [],
 					} satisfies Complete<ClientEntityDefinition>
@@ -550,13 +597,13 @@ export class InternalController {
 
 		// Lookup feedbacks
 		for (const [id, feedback] of this.#feedbacks.entries()) {
-			if (!feedback.referencedVariables || !feedback.referencedVariables.length) continue
+			if (!feedback.referencedVariables || !feedback.referencedVariables.size) continue
 
 			// If a specific control is specified, only update feedbacks for that control
 			if (fromControlId && feedback.controlId !== fromControlId) continue
 
 			// Check a referenced variable was changed
-			if (!feedback.referencedVariables.some((variable) => changedVariablesSet.has(variable))) continue
+			if (feedback.referencedVariables.isDisjointFrom(changedVariablesSet)) continue
 
 			newValues.push({
 				id: id,

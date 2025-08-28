@@ -15,12 +15,12 @@ import debounceFn from 'debounce-fn'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { IPageStore } from '../Page/Store.js'
@@ -209,7 +209,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	#fetchSurfaceId(
 		options: Record<string, any>,
-		info: RunActionExtras | FeedbackEntityModelExt,
+		info: RunActionExtras | FeedbackForInternalExecution,
 		useVariableFields: boolean
 	): string | undefined {
 		let surfaceId: string | undefined = options.controller + ''
@@ -227,7 +227,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	#fetchPage(
 		options: Record<string, any>,
-		extras: RunActionExtras | FeedbackEntityModelExt,
+		extras: RunActionExtras | FeedbackForInternalExecution,
 		useVariableFields: boolean,
 		surfaceId: string | undefined
 	): string | 'back' | 'forward' | '+1' | '-1' | undefined {
@@ -785,7 +785,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 		}
 	}
 
-	executeFeedback(feedback: FeedbackEntityModelExt): boolean | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): boolean | void {
 		if (feedback.definitionId == 'surface_on_page') {
 			const surfaceId = this.#fetchSurfaceId(feedback.options, feedback, false)
 			if (!surfaceId) return false

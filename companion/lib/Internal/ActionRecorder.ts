@@ -15,7 +15,7 @@ import type { IPageStore } from '../Page/Store.js'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
+	FeedbackForInternalExecution,
 	InternalModuleFragment,
 	InternalVisitor,
 	InternalActionDefinition,
@@ -315,12 +315,14 @@ export class InternalActionRecorder
 	/**
 	 * Get an updated value for a feedback
 	 */
-	executeFeedback(feedback: FeedbackEntityModelExt): boolean | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): boolean | void {
 		if (feedback.definitionId === 'action_recorder_check_connections') {
 			const session = this.#actionRecorder.getSession()
 			if (!session) return false
 
-			if (feedback.options.connections.length === 0) {
+			const connectionIds = feedback.options.connections as string[]
+
+			if (connectionIds.length === 0) {
 				// shortcut for when there are no connections selected
 				return !!session.isRunning && feedback.options.state === 'recording'
 			}
@@ -328,7 +330,7 @@ export class InternalActionRecorder
 			// check each selected connection
 			const matchAll = feedback.options.mode === 'all'
 			let matches = matchAll
-			for (const id of feedback.options.connections) {
+			for (const id of connectionIds) {
 				if (matchAll) {
 					matches = matches && session.connectionIds.includes(id)
 				} else {

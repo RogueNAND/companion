@@ -15,7 +15,6 @@ import { ButtonStyleProperties } from '@companion-app/shared/Style.js'
 import debounceFn from 'debounce-fn'
 import type {
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
 	ExecuteFeedbackResultWithReferences,
@@ -23,6 +22,7 @@ import type {
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { GraphicsController } from '../Graphics/Controller.js'
 import type { ControlsController } from '../Controls/Controller.js'
@@ -162,7 +162,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 
 	#fetchLocationAndControlId(
 		options: Record<string, any>,
-		extras: RunActionExtras | FeedbackEntityModelExt,
+		extras: RunActionExtras | FeedbackForInternalExecution,
 		useVariableFields = false
 	): {
 		theControlId: string | null
@@ -535,7 +535,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 		if (changed) return feedback
 	}
 
-	executeFeedback(feedback: FeedbackEntityModelExt): ExecuteFeedbackResultWithReferences | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): ExecuteFeedbackResultWithReferences | void {
 		if (feedback.definitionId === 'bank_style') {
 			const { theLocation, referencedVariables } = this.#fetchLocationAndControlId(feedback.options, feedback, true)
 
@@ -570,7 +570,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				} else {
 					const newStyle: Record<string, any> = {}
 
-					for (const prop of feedback.options.properties) {
+					for (const prop of feedback.options.properties as any) {
 						// @ts-expect-error mismatch in prop type
 						newStyle[prop] = render.style[prop]
 					}

@@ -14,12 +14,12 @@ import debounceFn from 'debounce-fn'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
-	FeedbackEntityModelExt,
 	InternalModuleFragment,
 	InternalVisitor,
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
+	FeedbackForInternalExecution,
 } from './Types.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
@@ -200,16 +200,16 @@ export class InternalTriggers extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	}
 
-	executeFeedback(feedback: FeedbackEntityModelExt): boolean | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): boolean | void {
 		if (feedback.definitionId === 'trigger_enabled') {
-			const control = this.#controlsController.getControl(feedback.options.trigger_id)
+			const control = this.#controlsController.getControl(String(feedback.options.trigger_id))
 			if (!control || control.type !== 'trigger' || !control.supportsOptions) return false
 
 			const state = control.options.enabled
 			const target = feedback.options.enable == 'true'
 			return state == target
 		} else if (feedback.definitionId === 'trigger_collection_enabled') {
-			const state = this.#controlsController.isTriggerCollectionEnabled(feedback.options.collection_id, true)
+			const state = this.#controlsController.isTriggerCollectionEnabled(String(feedback.options.collection_id), true)
 			const target = feedback.options.enable == 'true'
 			return state == target
 		}
