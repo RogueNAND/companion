@@ -99,6 +99,17 @@ const CHOICES_SURFACE_ID_WITH_VARIABLES: SomeCompanionInputField[] = [
 	},
 ]
 
+const CHOICES_SURFACE_ID_NEW: SomeCompanionInputField[] = [
+	{
+		type: 'internal:surface_serial',
+		label: 'Surface / group',
+		id: 'surfaceId',
+		default: 'self',
+		includeSelf: true,
+		useRawSurfaces: true,
+	},
+]
+
 const CHOICES_PAGE_WITH_VARIABLES: SomeCompanionInputField[] = [
 	{
 		type: 'checkbox',
@@ -219,6 +230,17 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 		}
 
 		surfaceId = surfaceId.trim()
+
+		if (info && surfaceId === 'self' && 'surfaceId' in info) surfaceId = info.surfaceId
+
+		return surfaceId
+	}
+
+	#fetchSurfaceIdNew(
+		options: Record<string, any>,
+		info: RunActionExtras | FeedbackForInternalExecution
+	): string | undefined {
+		let surfaceId: string | undefined = String(options.surfaceId).trim()
 
 		if (info && surfaceId === 'self' && 'surfaceId' in info) surfaceId = info.surfaceId
 
@@ -392,7 +414,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 				label: 'Surface: Set to brightness',
 				description: undefined,
 				options: [
-					...CHOICES_SURFACE_ID_WITH_VARIABLES,
+					...CHOICES_SURFACE_ID_NEW,
 
 					{
 						type: 'number',
@@ -405,6 +427,8 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 						range: true,
 					},
 				],
+
+				internalUsesAutoParser: true,
 			},
 
 			set_page: {
@@ -552,7 +576,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'set_brightness') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras, true)
+			const surfaceId = this.#fetchSurfaceIdNew(action.rawOptions, extras)
 			if (!surfaceId) return true
 
 			this.#surfaceController.setDeviceBrightness(surfaceId, action.rawOptions.brightness, true)
