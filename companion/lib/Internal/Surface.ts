@@ -27,7 +27,11 @@ import type { IPageStore } from '../Page/Store.js'
 import type { SurfaceController } from '../Surface/Controller.js'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
 import type { SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
-import { FeedbackEntitySubType, type ActionEntityModel } from '@companion-app/shared/Model/EntityModel.js'
+import {
+	FeedbackEntityModel,
+	FeedbackEntitySubType,
+	type ActionEntityModel,
+} from '@companion-app/shared/Model/EntityModel.js'
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
@@ -405,6 +409,13 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			action.options.controller = 'emulator:emulator'
 
 			return action
+		}
+	}
+
+	feedbackUpgrade(feedback: FeedbackEntityModel, controlId: string): FeedbackEntityModel | void {
+		//
+		if (feedback.definitionId === 'surface_on_page' && feedback.options.surfaceId === undefined) {
+			// TODO
 		}
 	}
 
@@ -792,7 +803,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 					{
 						type: 'internal:surface_serial',
 						label: 'Surface / group',
-						id: 'controller',
+						id: 'surfaceId',
 						includeSelf: false,
 						default: '',
 					},
@@ -805,13 +816,14 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 						default: 0,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 		}
 	}
 
 	executeFeedback(feedback: FeedbackForInternalExecution): boolean | void {
 		if (feedback.definitionId == 'surface_on_page') {
-			const surfaceId = this.#fetchSurfaceId(feedback.options, feedback, false)
+			const surfaceId = this.#fetchSurfaceIdNew(feedback.options, feedback)
 			if (!surfaceId) return false
 
 			const thePage = this.#fetchPage(feedback.options, feedback, false, surfaceId)
