@@ -11,7 +11,7 @@ import {
 import { InternalCustomVariableDropdown, InternalModuleField } from './InternalModuleField.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDollarSign, faGlobe, faQuestionCircle } from '@fortawesome/free-solid-svg-icons'
-import { SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
+import { ExpressionOrValue, SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
 import classNames from 'classnames'
 import { EntityModelType } from '@companion-app/shared/Model/EntityModel.js'
 import { StaticTextFieldText } from './StaticTextField.js'
@@ -19,6 +19,7 @@ import { LocalVariablesStore } from './LocalVariablesStore.js'
 import { observer } from 'mobx-react-lite'
 import { validateInputValue } from '~/Helpers/validateInputValue.js'
 import { InlineHelp } from '~/Components/InlineHelp.js'
+import { FieldOrExpression } from '~/Components/FieldOrExpression.js'
 
 interface OptionsInputFieldProps {
 	connectionId: string
@@ -30,6 +31,7 @@ interface OptionsInputFieldProps {
 	visibility: boolean
 	readonly?: boolean
 	localVariablesStore: LocalVariablesStore | null
+	fieldsSupportExpressions: boolean
 }
 
 function OptionLabel({ option, features }: { option: SomeCompanionInputField; features?: InputFeatureIconsProps }) {
@@ -51,14 +53,29 @@ export const OptionsInputField = observer(function OptionsInputField({
 	isLocatedInGrid,
 	entityType,
 	option,
-	value,
+	value: rawValue,
 	setValue,
 	visibility,
 	readonly,
 	localVariablesStore,
+	fieldsSupportExpressions,
 }: Readonly<OptionsInputFieldProps>): React.JSX.Element {
 	const checkValid = useCallback((value: any) => validateInputValue(option, value) === undefined, [option])
-	const setValue2 = useCallback((val: any) => setValue(option.id, val), [option.id, setValue])
+	const setValue2 = useCallback(
+		(val: any) =>
+			setValue(
+				option.id,
+				fieldsSupportExpressions
+					? ({
+							isExpression: false,
+							value: val,
+						} satisfies ExpressionOrValue<any>)
+					: val
+			),
+		[option.id, setValue, fieldsSupportExpressions]
+	)
+
+	const value = fieldsSupportExpressions ? (rawValue as ExpressionOrValue<any>)?.value : rawValue
 
 	if (!option) {
 		return <p>Bad option</p>
@@ -185,6 +202,16 @@ export const OptionsInputField = observer(function OptionsInputField({
 
 	if (control === undefined) {
 		control = <CInputGroupText>Unknown type "{option.type}"</CInputGroupText>
+	} else if (fieldsSupportExpressions) {
+		control = (
+			<FieldOrExpression
+				localVariablesStore={localVariablesStore!}
+				value={rawValue as ExpressionOrValue<any>}
+				setValue={(val) => setValue(option.id, val)}
+			>
+				{control}
+			</FieldOrExpression>
+		)
 	}
 
 	return (

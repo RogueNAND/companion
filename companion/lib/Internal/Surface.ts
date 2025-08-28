@@ -26,7 +26,7 @@ import type { ControlsController } from '../Controls/Controller.js'
 import type { IPageStore } from '../Page/Store.js'
 import type { SurfaceController } from '../Surface/Controller.js'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
-import type { SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
+import type { ExpressionOrValue, SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
 import {
 	FeedbackEntityModel,
 	FeedbackEntitySubType,
@@ -412,10 +412,14 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 		}
 	}
 
-	feedbackUpgrade(feedback: FeedbackEntityModel, controlId: string): FeedbackEntityModel | void {
-		//
+	feedbackUpgrade(feedback: FeedbackEntityModel, _controlId: string): FeedbackEntityModel | void {
 		if (feedback.definitionId === 'surface_on_page' && feedback.options.surfaceId === undefined) {
-			// TODO
+			// Convert to new expression format
+			feedback.options.surfaceId = {
+				isExpression: false,
+				value: feedback.options.controller || 'self',
+			} satisfies ExpressionOrValue<string>
+			delete feedback.options.controller
 		}
 	}
 

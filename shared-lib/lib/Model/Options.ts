@@ -223,3 +223,8 @@ export interface IsVisibleUiFn {
 }
 
 export type SomeCompanionInputField = ExtendedInputField | SomeCompanionConfigInputField | InternalInputField
+
+export type ExpressionOrValue<T> = { value: T; isExpression: false } | { value: string; isExpression: true }
+export type ExpressionableOptionsObject = {
+	[key: string]: ExpressionOrValue<any> | undefined
+}

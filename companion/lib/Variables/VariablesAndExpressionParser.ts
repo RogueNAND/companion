@@ -12,6 +12,7 @@ import { isInternalLogicFeedback, type ControlEntityInstance } from '../Controls
 import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
 import type { ClientEntityDefinition } from '@companion-app/shared/Model/EntityDefinitionModel.js'
 import type { OptionsObject } from '@companion-module/base/dist/util.js'
+import type { ExpressionOrValue } from '@companion-app/shared/Model/Options.js'
 
 /**
  * A class to parse and execute expressions with variables
@@ -102,22 +103,57 @@ export class VariablesAndExpressionParser {
 		const parsedOptions: OptionsObject = {}
 		const referencedVariableIds = new Set<string>()
 
-		for (const field of entityDefinition.options) {
-			if (field.type !== 'textinput' || !field.useVariables) {
-				// Field doesn't support variables, pass unchanged
-				parsedOptions[field.id] = options[field.id]
-				continue
+		if (entityDefinition.internalUsesAutoParser) {
+			// If the entity uses the auto parser, we can just parse all
+
+			console.log('parsing options', options)
+
+			for (const field of entityDefinition.options) {
+				const rawValue = options[field.id] as ExpressionOrValue<any> | undefined
+				if (typeof rawValue === 'object' && 'isExpression' in rawValue && typeof rawValue.isExpression === 'boolean') {
+					// Field is in the new format
+
+					if (rawValue.isExpression) {
+						// Parse the expression
+						const parseResult = this.executeExpression(rawValue.value || '', undefined)
+						if (!parseResult.ok) throw new Error(parseResult.error)
+						parsedOptions[field.id] = parseResult.value
+
+						// Track the variables referenced in this field
+						if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+							for (const variable of parseResult.variableIds) {
+								referencedVariableIds.add(variable)
+							}
+						}
+					} else {
+						// Just use the value as-is
+						parsedOptions[field.id] = rawValue.value
+					}
+				} else {
+					// Field is in the old format, treat as an unwrapped value
+					parsedOptions[field.id] = rawValue
+				}
 			}
+		} else {
+			// The old approach for only text inputs
 
-			// Field needs parsing
-			// Note - we don't need to care about the granularity given in `useVariables`,
-			const parseResult = this.parseVariables(String(options[field.id]))
-			parsedOptions[field.id] = parseResult.text
+			for (const field of entityDefinition.options) {
+				if (field.type !== 'textinput' || !field.useVariables) {
+					// Field doesn't support variables, pass unchanged
+					parsedOptions[field.id] = options[field.id]
+					continue
+				}
 
-			// Track the variables referenced in this field
-			if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
-				for (const variable of parseResult.variableIds) {
-					referencedVariableIds.add(variable)
+				// Field needs parsing
+				// Note - we don't need to care about the granularity given in `useVariables`,
+				const parseResult = this.parseVariables(String(options[field.id]))
+				parsedOptions[field.id] = parseResult.text
+
+				// Track the variables referenced in this field
+				if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+					for (const variable of parseResult.variableIds) {
+						referencedVariableIds.add(variable)
+					}
 				}
 			}
 		}

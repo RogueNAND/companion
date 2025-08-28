@@ -291,31 +291,31 @@ export class InternalController {
 	 * Get an updated value for a feedback
 	 */
 	#feedbackGetValue(feedback: FeedbackEntityState): any {
-		const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
-			EntityModelType.Feedback,
-			'internal',
-			feedback.entityModel.definitionId
-		)
-
-		// Parse the otpions if enabled
-		const { parsedOptions, referencedVariableIds } = entityDefinition?.internalUsesAutoParser
-			? this.#controlsController
-					.createVariablesAndExpressionParser(feedback.controlId, null)
-					.parseEntityOptions(entityDefinition, feedback.entityModel.options)
-			: { parsedOptions: feedback.entityModel.options as OptionsObject, referencedVariableIds: new Set<string>() }
-
-		const executionFeedback: Complete<FeedbackForInternalExecution> = {
-			controlId: feedback.controlId,
-			location: feedback.location,
-
-			options: parsedOptions,
-
-			id: feedback.entityModel.id,
-			definitionId: feedback.entityModel.definitionId,
-		}
-		feedback.referencedVariables = referencedVariableIds
-
 		try {
+			const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
+				EntityModelType.Feedback,
+				'internal',
+				feedback.entityModel.definitionId
+			)
+
+			// Parse the otpions if enabled
+			const { parsedOptions, referencedVariableIds } = entityDefinition?.internalUsesAutoParser
+				? this.#controlsController
+						.createVariablesAndExpressionParser(feedback.controlId, null)
+						.parseEntityOptions(entityDefinition, feedback.entityModel.options)
+				: { parsedOptions: feedback.entityModel.options as OptionsObject, referencedVariableIds: new Set<string>() }
+
+			const executionFeedback: Complete<FeedbackForInternalExecution> = {
+				controlId: feedback.controlId,
+				location: feedback.location,
+
+				options: parsedOptions,
+
+				id: feedback.entityModel.id,
+				definitionId: feedback.entityModel.definitionId,
+			}
+			feedback.referencedVariables = referencedVariableIds
+
 			for (const fragment of this.#fragments) {
 				if ('executeFeedback' in fragment && typeof fragment.executeFeedback === 'function') {
 					let value: ReturnType<Required<InternalModuleFragment>['executeFeedback']> | undefined
@@ -338,9 +338,14 @@ export class InternalController {
 					}
 				}
 			}
+		} catch (e: any) {
+			this.#logger.warn(
+				`Feedback get value failed: ${JSON.stringify(feedback.entityModel)} - ${e?.message ?? e} ${e?.stack}`
+			)
+			return undefined
 		} finally {
 			// If there are no referenced variables, set to null
-			if (feedback.referencedVariables.size === 0) {
+			if (feedback.referencedVariables && feedback.referencedVariables.size === 0) {
 				feedback.referencedVariables = null
 			}
 		}
