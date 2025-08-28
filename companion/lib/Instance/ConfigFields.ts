@@ -143,9 +143,11 @@ function translateTextInputField(
 	usesInternalVariableParsing: boolean
 ): Complete<CompanionInputFieldTextInputExtended> {
 	let useVariables: CompanionFieldVariablesSupport | undefined
-	if (field.useVariables) {
+	if (usesInternalVariableParsing) {
+		useVariables = { local: true }
+	} else if (field.useVariables) {
 		useVariables = {
-			local: usesInternalVariableParsing || (typeof field.useVariables === 'object' && field.useVariables.local),
+			local: typeof field.useVariables === 'object' && field.useVariables.local,
 		}
 	}
 
