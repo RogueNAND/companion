@@ -33,11 +33,7 @@ import {
 	FeedbackEntitySubType,
 	type ActionEntityModel,
 } from '@companion-app/shared/Model/EntityModel.js'
-import {
-	convertOldSplitOptionToExpression,
-	convertSimplePropertyToExpresionValue,
-	type InternalModuleUtils,
-} from './Util.js'
+import { convertOldSplitOptionToExpression, convertSimplePropertyToExpresionValue } from './Util.js'
 import { EventEmitter } from 'events'
 
 const CHOICES_SURFACE_ID: SomeCompanionInputField = {
@@ -69,7 +65,6 @@ const CHOICES_PAGE: SomeCompanionInputField = {
 export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
 	readonly #logger = LogController.createLogger('Internal/Surface')
 
-	readonly #internalUtils: InternalModuleUtils
 	readonly #controlsController: ControlsController
 	readonly #surfaceController: SurfaceController
 	readonly #pageStore: IPageStore
@@ -79,15 +74,9 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 	 */
 	readonly #pageHistory = new Map<string, { history: string[]; index: number }>()
 
-	constructor(
-		internalUtils: InternalModuleUtils,
-		surfaceController: SurfaceController,
-		controlsController: ControlsController,
-		pageStore: IPageStore
-	) {
+	constructor(surfaceController: SurfaceController, controlsController: ControlsController, pageStore: IPageStore) {
 		super()
 
-		this.#internalUtils = internalUtils
 		this.#surfaceController = surfaceController
 		this.#controlsController = controlsController
 		this.#pageStore = pageStore

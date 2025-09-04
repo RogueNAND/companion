@@ -103,7 +103,7 @@ export class InternalController {
 			new InternalControls(internalUtils, graphicsController, controlsController, pageStore),
 			new InternalCustomVariables(internalUtils, variablesController),
 			new InternalPage(internalUtils, pageStore),
-			new InternalSurface(internalUtils, surfaceController, controlsController, pageStore),
+			new InternalSurface(surfaceController, controlsController, pageStore),
 			new InternalSystem(internalUtils, userConfigController, variablesController, requestExit),
 			new InternalTriggers(internalUtils, controlsController),
 			new InternalVariables(internalUtils, controlsController, pageStore),
