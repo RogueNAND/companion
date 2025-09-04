@@ -249,13 +249,17 @@ function translateCustomVariableField(
 
 function translateCommonFields(
 	field: EncodeIsVisible<CompanionInputFieldBase>
-): Pick<Complete<CompanionInputFieldBaseExtended>, 'id' | 'label' | 'tooltip' | 'description' | 'isVisibleUi'> {
+): Pick<
+	Complete<CompanionInputFieldBaseExtended>,
+	'id' | 'label' | 'tooltip' | 'description' | 'isVisibleUi' | 'disableAutoExpression'
+> {
 	return {
 		id: field.id,
 		label: field.label,
 		tooltip: field.tooltip,
 		description: field.description,
 		isVisibleUi: translateIsVisibleFn(field),
+		disableAutoExpression: true, // Temporary until #2345
 	}
 }
 

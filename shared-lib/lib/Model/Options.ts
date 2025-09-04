@@ -40,6 +40,8 @@ export interface CompanionInputFieldBaseExtended {
 	isVisibleUi?: IsVisibleUiFn
 
 	width?: number // For connection config
+
+	disableAutoExpression?: boolean
 }
 
 export interface InternalInputFieldTime extends CompanionInputFieldBaseExtended {

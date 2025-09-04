@@ -1,7 +1,7 @@
 import { oldBankIndexToXY } from '@companion-app/shared/ControlId.js'
 import type { ControlLocation } from '@companion-app/shared/Model/Common.js'
 import type { VariablesAndExpressionParser } from '../Variables/VariablesAndExpressionParser.js'
-import { SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
+import { ExpressionOrValue, SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
 import LogController, { type Logger } from '../Log/Controller.js'
 import type { ParseVariablesResult } from '../Variables/Util.js'
 import type { CompanionVariableValues } from '@companion-module/base'
@@ -262,4 +262,38 @@ export class InternalModuleUtils {
 			'$(this:surface_id)': extras.surfaceId,
 		}
 	}
+}
+
+export function convertOldSplitOptionToExpression(
+	options: Record<string, any>,
+	keys: {
+		useVariables: string
+		simple: string
+		variable: string
+		result: string
+	},
+	variableIsExpression: boolean
+): void {
+	if (options[keys.useVariables]) {
+		if (variableIsExpression) {
+			options[keys.result] = {
+				isExpression: true,
+				value: options[keys.variable] || '',
+			} satisfies ExpressionOrValue<string>
+		} else {
+			options[keys.result] = {
+				isExpression: true,
+				value: options[keys.variable] === undefined ? '' : `parseVariables(\`${options[keys.variable]}\`)`,
+			} satisfies ExpressionOrValue<string>
+		}
+	} else {
+		options[keys.result] = {
+			isExpression: false,
+			value: options[keys.simple] || '',
+		} satisfies ExpressionOrValue<string>
+	}
+
+	delete options[keys.useVariables]
+	delete options[keys.simple]
+	delete options[keys.variable]
 }
