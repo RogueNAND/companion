@@ -171,7 +171,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 		if (definition.options !== undefined && definition.options.length > 0) {
 			for (const opt of definition.options) {
 				const defaultValue = cloneDeep((opt as any).default)
-				if (definition.internalUsesAutoParser) {
+				if (definition.internalUsesAutoParser && !opt.disableAutoExpression) {
 					entity.options[opt.id] = {
 						isExpression: false,
 						value: defaultValue,

@@ -26,14 +26,18 @@ import type { ControlsController } from '../Controls/Controller.js'
 import type { IPageStore } from '../Page/Store.js'
 import type { SurfaceController } from '../Surface/Controller.js'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
-import type { ExpressionOrValue, SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
+import type { SomeCompanionInputField } from '@companion-app/shared/Model/Options.js'
 import {
 	FeedbackEntityModel,
 	FeedbackEntitySubType,
 	type ActionEntityModel,
 } from '@companion-app/shared/Model/EntityModel.js'
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
-import { convertOldSplitOptionToExpression, type InternalModuleUtils } from './Util.js'
+import {
+	convertOldSplitOptionToExpression,
+	convertSimplePropertyToExpresionValue,
+	type InternalModuleUtils,
+} from './Util.js'
 import { EventEmitter } from 'events'
 
 const CHOICES_SURFACE_ID: SomeCompanionInputField = {
@@ -53,43 +57,18 @@ const CHOICES_SURFACE_GROUP: SomeCompanionInputField = {
 	includeSelf: true,
 }
 
-const CHOICES_PAGE_WITH_VARIABLES: SomeCompanionInputField[] = [
-	{
-		type: 'checkbox',
-		label: 'Use expression for page',
-		id: 'page_from_variable',
-		default: false,
-		disableAutoExpression: true,
+const CHOICES_PAGE: SomeCompanionInputField = {
+	type: 'internal:page',
+	label: 'Page',
+	id: 'page',
+	includeStartup: true,
+	includeDirection: true,
+	default: 0,
+	isVisibleUi: {
+		type: 'expression',
+		fn: '!$(options:page_from_variable)',
 	},
-	{
-		type: 'internal:page',
-		label: 'Page',
-		id: 'page',
-		includeStartup: true,
-		includeDirection: true,
-		default: 0,
-		isVisibleUi: {
-			type: 'expression',
-			fn: '!$(options:page_from_variable)',
-		},
-		disableAutoExpression: true,
-	},
-	{
-		type: 'textinput',
-		label: 'Page (expression)',
-		id: 'page_variable',
-		default: '1',
-		isVisibleUi: {
-			type: 'expression',
-			fn: '!!$(options:page_from_variable)',
-		},
-		useVariables: {
-			local: true,
-		},
-		isExpression: true,
-		disableAutoExpression: true,
-	},
-]
+}
 
 export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
 	readonly #logger = LogController.createLogger('Internal/Surface')
@@ -178,20 +157,9 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 	#fetchPage(
 		options: Record<string, any>,
 		extras: RunActionExtras | FeedbackForInternalExecution,
-		useVariableFields: boolean,
 		surfaceId: string | undefined
 	): string | 'back' | 'forward' | '+1' | '-1' | undefined {
 		let thePageNumber: number | string | undefined = options.page
-
-		if (useVariableFields && options.page_from_variable) {
-			const expressionResult = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
-				options.page_variable,
-				extras,
-				'number'
-			)
-			if (!expressionResult.ok) throw new Error(expressionResult.error)
-			thePageNumber = Number(expressionResult.value)
-		}
 
 		if (extras.location) {
 			if (thePageNumber === 0 || thePageNumber === '0')
@@ -362,14 +330,38 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			)
 		}
 
-		if (action.definitionId === 'set_brightness' && typeof action.options.brightness === 'number') {
+		if (action.definitionId === 'set_brightness') {
+			changed = convertSimplePropertyToExpresionValue(action.options, 'brightness') || changed
+		}
+
+		if (
+			(action.definitionId === 'set_page' || action.definitionId === 'set_page_byindex') &&
+			action.options.page_from_variable !== undefined
+		) {
 			changed = true
 
-			action.options.brightness = {
-				isExpression: false,
-				value: action.options.brightness,
-			} satisfies ExpressionOrValue<any>
+			convertOldSplitOptionToExpression(
+				action.options,
+				{
+					useVariables: 'page_from_variable',
+					simple: 'page',
+					variable: 'page_variable',
+					result: 'page',
+				},
+				true
+			)
 		}
+
+		if (action.definitionId === 'surface_set_position') {
+			changed = convertSimplePropertyToExpresionValue(action.options, 'x_offset') || changed
+			changed = convertSimplePropertyToExpresionValue(action.options, 'y_offset') || changed
+		}
+		if (action.definitionId === 'surface_adjust_position') {
+			changed = convertSimplePropertyToExpresionValue(action.options, 'x_adjustment') || changed
+			changed = convertSimplePropertyToExpresionValue(action.options, 'y_adjustment') || changed
+		}
+
+		// TODO - set_page_byindex controller
 
 		if (changed) return action
 	}
@@ -377,22 +369,11 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 	feedbackUpgrade(feedback: FeedbackEntityModel, _controlId: string): FeedbackEntityModel | void {
 		let changed = false
 
-		if (feedback.definitionId === 'surface_on_page' && feedback.options.surfaceId === undefined) {
-			feedback.options.surfaceId = {
-				isExpression: false,
-				value: feedback.options.controller || 'self',
-			} satisfies ExpressionOrValue<string>
-			delete feedback.options.controller
-
-			changed = true
+		if (feedback.definitionId === 'surface_on_page') {
+			changed = convertSimplePropertyToExpresionValue(feedback.options, 'surfaceId', 'controller', 'self') || changed
 		}
-		if (feedback.definitionId === 'surface_on_page' && typeof feedback.options.page === 'number') {
-			feedback.options.page = {
-				isExpression: false,
-				value: feedback.options.page,
-			} satisfies ExpressionOrValue<any>
-
-			changed = true
+		if (feedback.definitionId === 'surface_on_page') {
+			changed = convertSimplePropertyToExpresionValue(feedback.options, 'page') || changed
 		}
 
 		if (changed) return feedback
@@ -424,7 +405,9 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			set_page: {
 				label: 'Surface: Set to page',
 				description: undefined,
-				options: [CHOICES_SURFACE_GROUP, ...CHOICES_PAGE_WITH_VARIABLES],
+				options: [CHOICES_SURFACE_GROUP, CHOICES_PAGE],
+
+				internalUsesAutoParser: true,
 			},
 			set_page_byindex: {
 				label: 'Surface: Set by index to page',
@@ -468,41 +451,55 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 						disableAutoExpression: true,
 					},
 
-					...CHOICES_PAGE_WITH_VARIABLES,
+					CHOICES_PAGE,
 				],
+
+				internalUsesAutoParser: true,
 			},
 
 			inc_page: {
 				label: 'Surface: Increment page number',
 				description: undefined,
 				options: [CHOICES_SURFACE_GROUP],
+
+				internalUsesAutoParser: true,
 			},
 			dec_page: {
 				label: 'Surface: Decrement page number',
 				description: undefined,
 				options: [CHOICES_SURFACE_GROUP],
+
+				internalUsesAutoParser: true,
 			},
 
 			lockout_device: {
 				label: 'Surface: Lockout specified surface immediately.',
 				description: undefined,
 				options: [CHOICES_SURFACE_GROUP],
+
+				internalUsesAutoParser: true,
 			},
 			unlockout_device: {
 				label: 'Surface: Unlock specified surface immediately.',
 				description: undefined,
 				options: [CHOICES_SURFACE_GROUP],
+
+				internalUsesAutoParser: true,
 			},
 
 			lockout_all: {
 				label: 'Surface: Lockout all immediately.',
 				description: undefined,
 				options: [],
+
+				internalUsesAutoParser: true,
 			},
 			unlockout_all: {
 				label: 'Surface: Unlock all immediately.',
 				description: undefined,
 				options: [],
+
+				internalUsesAutoParser: true,
 			},
 
 			rescan: {
@@ -536,6 +533,8 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 						step: 1,
 					},
 				],
+
+				internalUsesAutoParser: true,
 			},
 
 			surface_adjust_position: {
@@ -563,6 +562,8 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 						step: 1,
 					},
 				],
+
+				internalUsesAutoParser: true,
 			},
 		}
 	}
@@ -578,7 +579,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
 			if (!surfaceId) return true
 
-			const thePage = this.#fetchPage(action.rawOptions, extras, true, surfaceId)
+			const thePage = this.#fetchPage(action.rawOptions, extras, surfaceId)
 			if (thePage === undefined) return true
 
 			this.#changeSurfacePage(surfaceId, thePage)
@@ -604,7 +605,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 				return true
 			}
 
-			const thePage = this.#fetchPage(action.rawOptions, extras, true, surfaceId)
+			const thePage = this.#fetchPage(action.rawOptions, extras, surfaceId)
 			if (thePage === undefined) return true
 
 			this.#changeSurfacePage(surfaceId, thePage)
@@ -808,7 +809,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			const surfaceId = this.#fetchSurfaceId(feedback.options, feedback)
 			if (!surfaceId) return false
 
-			const thePage = this.#fetchPage(feedback.options, feedback, false, surfaceId)
+			const thePage = this.#fetchPage(feedback.options, feedback, surfaceId)
 
 			const currentPage = this.#surfaceController.devicePageGet(surfaceId, true)
 

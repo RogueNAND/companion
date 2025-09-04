@@ -294,6 +294,26 @@ export function convertOldSplitOptionToExpression(
 	}
 
 	delete options[keys.useVariables]
-	delete options[keys.simple]
 	delete options[keys.variable]
+	if (keys.simple !== keys.result) delete options[keys.simple]
+}
+
+export function convertSimplePropertyToExpresionValue(
+	options: Record<string, any>,
+	key: string,
+	oldKey?: string,
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+	defaultValue?: any
+): boolean {
+	if (typeof options[oldKey ?? key] === 'string' || typeof options[oldKey ?? key] === 'number') {
+		options[key] = {
+			isExpression: false,
+			value: options[oldKey ?? key] ?? defaultValue,
+		} satisfies ExpressionOrValue<any>
+		if (oldKey) delete options[oldKey]
+
+		return true
+	} else {
+		return false
+	}
 }
