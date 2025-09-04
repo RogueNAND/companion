@@ -23,6 +23,7 @@ import type {
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { GraphicsController } from '../Graphics/Controller.js'
 import type { ControlsController } from '../Controls/Controller.js'
@@ -36,7 +37,6 @@ import {
 	type ActionEntityModel,
 	type FeedbackEntityModel,
 } from '@companion-app/shared/Model/EntityModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { nanoid } from 'nanoid'
 import { CHOICES_DYNAMIC_LOCATION, type InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
@@ -833,102 +833,102 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 		if (changed) return action
 	}
 
-	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'button_pressrelease') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
-			const forcePress = !!action.rawOptions.force
+			const forcePress = !!action.options.force
 
 			this.#controlsController.pressControl(theControlId, true, extras.surfaceId, forcePress)
 			this.#controlsController.pressControl(theControlId, false, extras.surfaceId, forcePress)
 			return true
 		} else if (action.definitionId === 'button_press') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
-			this.#controlsController.pressControl(theControlId, true, extras.surfaceId, !!action.rawOptions.force)
+			this.#controlsController.pressControl(theControlId, true, extras.surfaceId, !!action.options.force)
 			return true
 		} else if (action.definitionId === 'button_release') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
-			this.#controlsController.pressControl(theControlId, false, extras.surfaceId, !!action.rawOptions.force)
+			this.#controlsController.pressControl(theControlId, false, extras.surfaceId, !!action.options.force)
 			return true
 		} else if (action.definitionId === 'button_rotate_left') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			this.#controlsController.rotateControl(theControlId, false, extras.surfaceId)
 			return true
 		} else if (action.definitionId === 'button_rotate_right') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			this.#controlsController.rotateControl(theControlId, true, extras.surfaceId)
 			return true
 		} else if (action.definitionId === 'bgcolor') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
 			if (control && control.supportsStyle) {
-				control.styleSetFields({ bgcolor: action.rawOptions.color })
+				control.styleSetFields({ bgcolor: action.options.color })
 			}
 			return true
 		} else if (action.definitionId === 'textcolor') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
 			if (control && control.supportsStyle) {
-				control.styleSetFields({ color: action.rawOptions.color })
+				control.styleSetFields({ color: action.options.color })
 			}
 			return true
 		} else if (action.definitionId === 'button_text') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
 			if (control && control.supportsStyle) {
-				control.styleSetFields({ text: action.rawOptions.label })
+				control.styleSetFields({ text: action.options.label })
 			}
 
 			return true
 		} else if (action.definitionId === 'panic_bank') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
 			if (control && control.supportsActions) {
-				const rawControlId = action.rawOptions.location_target
+				const rawControlId = action.options.location_target
 				if (rawControlId === 'this') {
-					control.abortDelayedActions(action.rawOptions.unlatch, extras.abortDelayed)
+					control.abortDelayedActions(Boolean(action.options.unlatch), extras.abortDelayed)
 				} else if (rawControlId === 'this:only-this-run') {
-					control.abortDelayedActionsSingle(action.rawOptions.unlatch, extras.abortDelayed)
+					control.abortDelayedActionsSingle(Boolean(action.options.unlatch), extras.abortDelayed)
 				} else {
-					control.abortDelayedActions(action.rawOptions.unlatch, null)
+					control.abortDelayedActions(Boolean(action.options.unlatch), null)
 				}
 			}
 
 			return true
 		} else if (action.definitionId === 'panic_page') {
-			const { thePage } = this.#fetchPage(action.rawOptions, extras)
+			const { thePage } = this.#fetchPage(action.options, extras)
 			if (thePage === null) return true
 
 			const controlIdsOnPage = this.#pageStore.getAllControlIdsOnPage(thePage)
 			for (const controlId of controlIdsOnPage) {
-				if (action.rawOptions.ignoreSelf && controlId === extras.controlId) continue
+				if (action.options.ignoreSelf && controlId === extras.controlId) continue
 
 				const control = this.#controlsController.getControl(controlId)
 				if (control && control.supportsActions) {
-					control.abortDelayedActions(false, action.rawOptions.ignoreCurrent ? extras.abortDelayed : null)
+					control.abortDelayedActions(false, action.options.ignoreCurrent ? extras.abortDelayed : null)
 				}
 			}
 
 			return true
 		} else if (action.definitionId === 'panic_trigger') {
-			const rawControlId = action.rawOptions.trigger_id
+			const rawControlId = String(action.options.trigger_id)
 			let controlId = rawControlId
 			if (controlId === 'self' || controlId?.startsWith('self:')) controlId = extras.controlId
 
@@ -947,13 +947,13 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 
 			return true
 		} else if (action.definitionId === 'panic') {
-			this.#controlsController.abortAllDelayedActions(action.rawOptions.ignoreCurrent ? extras.abortDelayed : null)
+			this.#controlsController.abortAllDelayedActions(action.options.ignoreCurrent ? extras.abortDelayed : null)
 			return true
 		} else if (action.definitionId == 'bank_current_step') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
-			const theStep = this.#fetchStep(action.rawOptions, extras)
+			const theStep = this.#fetchStep(action.options, extras)
 
 			const control = this.#controlsController.getControl(theControlId)
 
@@ -962,13 +962,13 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			}
 			return true
 		} else if (action.definitionId == 'bank_current_step_delta') {
-			const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
 
 			if (control && control.supportsActionSets) {
-				control.actionSets.stepAdvanceDelta(action.rawOptions.amount)
+				control.actionSets.stepAdvanceDelta(Number(action.options.amount))
 			}
 			return true
 		} else {

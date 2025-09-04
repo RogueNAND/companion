@@ -18,11 +18,11 @@ import type {
 	InternalActionDefinition,
 	ActionForVisitor,
 	InternalModuleFragmentEvents,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { ActionRunner } from '../Controls/ActionRunner.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import { EntityModelType, FeedbackEntityModel, FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
 
@@ -231,7 +231,7 @@ export class InternalBuildingBlocks
 	}
 
 	executeAction(
-		action: ControlEntityInstance,
+		action: ActionForInternalExecution,
 		extras: RunActionExtras,
 		actionRunner: ActionRunner
 	): Promise<boolean> | boolean {
@@ -239,7 +239,7 @@ export class InternalBuildingBlocks
 			if (extras.abortDelayed.aborted) return true
 
 			const expressionResult = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
-				action.rawOptions.time,
+				String(action.options.time),
 				extras,
 				'number'
 			)
@@ -260,7 +260,7 @@ export class InternalBuildingBlocks
 			if (extras.abortDelayed.aborted) return true
 
 			let executeSequential = false
-			switch (action.rawOptions.execution_mode) {
+			switch (action.options.execution_mode) {
 				case 'sequential':
 					executeSequential = true
 					break
@@ -271,7 +271,7 @@ export class InternalBuildingBlocks
 					executeSequential = extras.executionMode === 'sequential'
 					break
 				default:
-					this.#logger.error(`Unknown execution mode: ${action.rawOptions.execution_mode}`)
+					this.#logger.error(`Unknown execution mode: ${action.options.execution_mode}`)
 			}
 
 			const newExtras: RunActionExtras = {
@@ -279,7 +279,7 @@ export class InternalBuildingBlocks
 				executionMode: executeSequential ? 'sequential' : 'concurrent',
 			}
 
-			const childActions = action.getChildren('default')?.getDirectEntities() ?? []
+			const childActions = action.rawEntity.getChildren('default')?.getDirectEntities() ?? []
 
 			return actionRunner
 				.runMultipleActions(childActions, newExtras, executeSequential)
@@ -290,10 +290,10 @@ export class InternalBuildingBlocks
 		} else if (action.definitionId === 'logic_if') {
 			if (extras.abortDelayed.aborted) return true
 
-			const conditionValues = action.getChildren('condition')?.getChildBooleanFeedbackValues() ?? []
+			const conditionValues = action.rawEntity.getChildren('condition')?.getChildBooleanFeedbackValues() ?? []
 
 			const executeGroup = booleanAnd(false, conditionValues) ? 'actions' : 'else_actions'
-			const childActions = action.getChildren(executeGroup)?.getDirectEntities() ?? []
+			const childActions = action.rawEntity.getChildren(executeGroup)?.getDirectEntities() ?? []
 			const executeSequential = extras.executionMode === 'sequential'
 
 			return actionRunner

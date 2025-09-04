@@ -21,6 +21,7 @@ import type {
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { IPageStore } from '../Page/Store.js'
@@ -32,7 +33,6 @@ import {
 	FeedbackEntitySubType,
 	type ActionEntityModel,
 } from '@companion-app/shared/Model/EntityModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import {
 	convertOldSplitOptionToExpression,
 	convertSimplePropertyToExpresionValue,
@@ -550,27 +550,28 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 		}
 	}
 
-	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'set_brightness') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
-			this.#surfaceController.setDeviceBrightness(surfaceId, action.rawOptions.brightness, true)
+			this.#surfaceController.setDeviceBrightness(surfaceId, Number(action.options.brightness), true)
 			return true
 		} else if (action.definitionId === 'set_page') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			console.log('set', action.options)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
-			const thePage = this.#fetchPage(action.rawOptions, extras, surfaceId)
+			const thePage = this.#fetchPage(action.options, extras, surfaceId)
 			if (thePage === undefined) return true
 
 			this.#changeSurfacePage(surfaceId, thePage)
 			return true
 		} else if (action.definitionId === 'set_page_byindex') {
-			let surfaceIndex = action.rawOptions.controller
-			if (action.rawOptions.controller_from_variable) {
+			let surfaceIndex = action.options.controller
+			if (action.options.controller_from_variable) {
 				surfaceIndex = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-					action.rawOptions.controller_variable,
+					String(action.options.controller_variable),
 					extras
 				).text
 			}
@@ -583,30 +584,30 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 			const surfaceId = this.#surfaceController.getDeviceIdFromIndex(surfaceIndexNumber)
 			if (surfaceId === undefined || surfaceId === '') {
-				this.#logger.warn(`Trying to set controller #${action.rawOptions.controller} but it isn't available.`)
+				this.#logger.warn(`Trying to set controller #${action.options.controller} but it isn't available.`)
 				return true
 			}
 
-			const thePage = this.#fetchPage(action.rawOptions, extras, surfaceId)
+			const thePage = this.#fetchPage(action.options, extras, surfaceId)
 			if (thePage === undefined) return true
 
 			this.#changeSurfacePage(surfaceId, thePage)
 			return true
 		} else if (action.definitionId === 'inc_page') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
 			this.#changeSurfacePage(surfaceId, '+1')
 			return true
 		} else if (action.definitionId === 'dec_page') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
 			this.#changeSurfacePage(surfaceId, '-1')
 			return true
 		} else if (action.definitionId === 'lockout_device') {
 			if (this.#surfaceController.isPinLockEnabled()) {
-				const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+				const surfaceId = this.#fetchSurfaceId(action.options, extras)
 				if (!surfaceId) return true
 
 				if (extras.controlId && extras.surfaceId == surfaceId) {
@@ -623,7 +624,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			}
 			return true
 		} else if (action.definitionId === 'unlockout_device') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
 			setImmediate(() => {
@@ -657,11 +658,11 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			})
 			return true
 		} else if (action.definitionId === 'surface_set_position') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
-			const xOffset = Number(action.rawOptions.x_offset)
-			const yOffset = Number(action.rawOptions.y_offset)
+			const xOffset = Number(action.options.x_offset)
+			const yOffset = Number(action.options.y_offset)
 
 			if (isNaN(xOffset) || isNaN(yOffset)) {
 				this.#logger.warn(`Invalid position offsets: x=${xOffset}, y=${yOffset}`)
@@ -671,11 +672,11 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			this.#surfaceController.setDevicePosition(surfaceId, xOffset, yOffset, true)
 			return true
 		} else if (action.definitionId === 'surface_adjust_position') {
-			const surfaceId = this.#fetchSurfaceId(action.rawOptions, extras)
+			const surfaceId = this.#fetchSurfaceId(action.options, extras)
 			if (!surfaceId) return true
 
-			const xAdjustment = Number(action.rawOptions.x_adjustment)
-			const yAdjustment = Number(action.rawOptions.y_adjustment)
+			const xAdjustment = Number(action.options.x_adjustment)
+			const yAdjustment = Number(action.options.y_adjustment)
 
 			if (isNaN(xAdjustment) || isNaN(yAdjustment)) {
 				this.#logger.warn(`Invalid position adjustments: x=${xAdjustment}, y=${yAdjustment}`)

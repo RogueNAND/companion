@@ -18,6 +18,7 @@ import type {
 	InternalModuleFragment,
 	InternalVisitor,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import type { CompanionVariableValue } from '@companion-module/base'
@@ -425,10 +426,36 @@ export class InternalController {
 		if (action.type !== EntityModelType.Action)
 			throw new Error(`Cannot execute entity of type "${action.type}" as an action`)
 
+		const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
+			EntityModelType.Action,
+			'internal',
+			action.definitionId
+		)
+
+		// Parse the otpions if enabled
+		const { parsedOptions } = entityDefinition?.internalUsesAutoParser
+			? this.#controlsController
+					.createVariablesAndExpressionParser(extras.controlId, null)
+					.parseEntityOptions(entityDefinition, action.rawOptions)
+			: { parsedOptions: action.rawOptions as OptionsObject }
+
+		const executionAction: Complete<ActionForInternalExecution> = {
+			// controlId: action.controlId,
+			// location: action.location,
+
+			options: parsedOptions,
+
+			id: action.id,
+			definitionId: action.definitionId,
+
+			rawEntity: action,
+		}
+		// feedback.referencedVariables = referencedVariableIds
+
 		for (const fragment of this.#fragments) {
 			if ('executeAction' in fragment && typeof fragment.executeAction === 'function') {
 				try {
-					let value = fragment.executeAction(action, extras, this.#controlsController.actionRunner)
+					let value = fragment.executeAction(executionAction, extras, this.#controlsController.actionRunner)
 					// Only await if it is a promise, to avoid unnecessary async pauses
 					value = value instanceof Promise ? await value : value
 

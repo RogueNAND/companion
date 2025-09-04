@@ -22,9 +22,9 @@ import type {
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { CompanionFeedbackButtonStyleResult, CompanionVariableValues } from '@companion-module/base'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
 import { EventEmitter } from 'events'
 import type { InternalModuleUtils } from './Util.js'
@@ -304,22 +304,22 @@ export class InternalInstance extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	}
 
-	executeAction(action: ControlEntityInstance, _extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, _extras: RunActionExtras): boolean {
 		if (action.definitionId === 'instance_control') {
-			let newState = action.rawOptions.enable == 'true'
-			if (action.rawOptions.enable == 'toggle') {
-				const curState = this.#instanceController.getConnectionStatus(action.rawOptions.instance_id)
+			let newState = action.options.enable == 'true'
+			if (action.options.enable == 'toggle') {
+				const curState = this.#instanceController.getConnectionStatus(String(action.options.instance_id))
 
 				newState = !curState?.category
 			}
 
-			this.#instanceController.enableDisableInstance(action.rawOptions.instance_id, newState)
+			this.#instanceController.enableDisableInstance(String(action.options.instance_id), newState)
 			return true
 		} else if (action.definitionId === 'connection_collection_enabled') {
-			let newState: boolean | 'toggle' = action.rawOptions.enable == 'true'
-			if (action.rawOptions.enable == 'toggle') newState = 'toggle'
+			let newState: boolean | 'toggle' = action.options.enable == 'true'
+			if (action.options.enable == 'toggle') newState = 'toggle'
 
-			this.#instanceController.collections.setCollectionEnabled(action.rawOptions.collection_id, newState)
+			this.#instanceController.collections.setCollectionEnabled(String(action.options.collection_id), newState)
 			return true
 		} else {
 			return false

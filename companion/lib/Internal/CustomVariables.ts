@@ -18,13 +18,14 @@ import type {
 	InternalActionDefinition,
 	ActionForVisitor,
 	InternalModuleFragmentEvents,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { VariablesController } from '../Variables/Controller.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import type { ActionEntityModel } from '@companion-app/shared/Model/EntityModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
+import { CompanionVariableValue } from '@companion-module/base'
 
 export class InternalCustomVariables
 	extends EventEmitter<InternalModuleFragmentEvents>
@@ -258,39 +259,48 @@ export class InternalCustomVariables
 		}
 	}
 
-	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'custom_variable_set_value') {
-			this.#variableController.custom.setValue(action.rawOptions.name, action.rawOptions.value)
+			this.#variableController.custom.setValue(
+				String(action.options.name),
+				action.options.value as CompanionVariableValue
+			)
 			return true
 		} else if (action.definitionId === 'custom_variable_create_value') {
-			if (this.#variableController.custom.hasCustomVariable(action.rawOptions.name)) {
-				this.#variableController.custom.setValue(action.rawOptions.name, action.rawOptions.value)
+			if (this.#variableController.custom.hasCustomVariable(String(action.options.name))) {
+				this.#variableController.custom.setValue(
+					String(action.options.name),
+					action.options.value as CompanionVariableValue
+				)
 			} else {
-				this.#variableController.custom.createVariable(action.rawOptions.name, action.rawOptions.value)
+				this.#variableController.custom.createVariable(
+					String(action.options.name),
+					action.options.value as CompanionVariableValue
+				)
 			}
 			return true
 		} else if (action.definitionId === 'custom_variable_set_expression') {
 			const result = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
-				action.rawOptions.expression,
+				String(action.options.expression),
 				extras
 			)
 			if (result.ok) {
-				this.#variableController.custom.setValue(action.rawOptions.name, result.value)
+				this.#variableController.custom.setValue(String(action.options.name), result.value)
 			} else {
-				this.#logger.warn(`${result.error}, in expression: "${action.rawOptions.expression}"`)
+				this.#logger.warn(`${result.error}, in expression: "${action.options.expression}"`)
 			}
 
 			return true
 		} else if (action.definitionId === 'custom_variable_store_variable') {
-			const [connectionLabel, variableName] = SplitVariableId(action.rawOptions.variable)
+			const [connectionLabel, variableName] = SplitVariableId(String(action.options.variable))
 			const value = this.#variableController.values.getVariableValue(connectionLabel, variableName)
-			this.#variableController.custom.setValue(action.rawOptions.name, value)
+			this.#variableController.custom.setValue(String(action.options.name), value)
 			return true
 		} else if (action.definitionId === 'custom_variable_reset_to_default') {
-			this.#variableController.custom.resetValueToDefault(action.rawOptions.name)
+			this.#variableController.custom.resetValueToDefault(String(action.options.name))
 			return true
 		} else if (action.definitionId === 'custom_variable_sync_to_default') {
-			this.#variableController.custom.syncValueToDefault(action.rawOptions.name)
+			this.#variableController.custom.syncValueToDefault(String(action.options.name))
 			return true
 		} else {
 			return false

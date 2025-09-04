@@ -10,10 +10,10 @@ import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper
 import type { SetOptional } from 'type-fest'
 import type { ActionEntityModel, FeedbackEntityModel } from '@companion-app/shared/Model/EntityModel.js'
 import type { ClientEntityDefinition } from '@companion-app/shared/Model/EntityDefinitionModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import type { ActionRunner } from '../Controls/ActionRunner.js'
 import type { EventEmitter } from 'events'
-import { OptionsObject } from '@companion-module/base/dist/util.js'
+import type { OptionsObject } from '@companion-module/base/dist/util.js'
+import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 
 export interface FeedbackForInternalExecution {
 	controlId: string
@@ -23,6 +23,18 @@ export interface FeedbackForInternalExecution {
 	definitionId: string
 
 	options: OptionsObject
+}
+
+export interface ActionForInternalExecution {
+	// controlId: string
+	// location: ControlLocation | undefined
+
+	id: string
+	definitionId: string
+
+	options: OptionsObject
+
+	rawEntity: ControlEntityInstance
 }
 
 export type InternalVisitor = VisitorReferencesCollectorVisitor | VisitorReferencesUpdaterVisitor
@@ -60,7 +72,7 @@ export interface InternalModuleFragment extends EventEmitter<InternalModuleFragm
 	 * @returns Whether the action was handled
 	 */
 	executeAction?(
-		action: ControlEntityInstance,
+		action: ActionForInternalExecution,
 		extras: RunActionExtras,
 		actionRunner: ActionRunner
 	): Promise<boolean> | boolean

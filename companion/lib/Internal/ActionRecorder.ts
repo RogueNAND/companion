@@ -21,10 +21,10 @@ import type {
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
 import { validateActionSetId } from '@companion-app/shared/ControlId.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
 import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
@@ -170,12 +170,12 @@ export class InternalActionRecorder
 		}
 	}
 
-	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'action_recorder_set_recording') {
 			const session = this.#actionRecorder.getSession()
 			if (session) {
-				let newState = action.rawOptions.enable == 'true'
-				if (action.rawOptions.enable == 'toggle') newState = !session.isRunning
+				let newState = action.options.enable == 'true'
+				if (action.options.enable == 'toggle') newState = !session.isRunning
 
 				this.#actionRecorder.setRecording(newState)
 			}
@@ -186,9 +186,9 @@ export class InternalActionRecorder
 			if (session) {
 				let result = new Set(session.connectionIds)
 
-				const selectedIds = new Set<string>(action.rawOptions.connections)
+				const selectedIds = new Set<string>(action.options.connections as string[])
 
-				switch (action.rawOptions.mode) {
+				switch (action.options.mode) {
 					case 'set':
 						result = selectedIds
 						break
@@ -217,10 +217,19 @@ export class InternalActionRecorder
 
 			return true
 		} else if (action.definitionId === 'action_recorder_save_to_button') {
-			let stepId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(action.rawOptions.step, extras).text
-			let setId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(action.rawOptions.set, extras).text
-			const pageRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(action.rawOptions.page, extras).text
-			const bankRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(action.rawOptions.bank, extras).text
+			let stepId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
+				String(action.options.step),
+				extras
+			).text
+			let setId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(String(action.options.set), extras).text
+			const pageRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
+				String(action.options.page),
+				extras
+			).text
+			const bankRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
+				String(action.options.bank),
+				extras
+			).text
 
 			if (setId === 'press') setId = 'down'
 			else if (setId === 'release') setId = 'up'
@@ -249,7 +258,7 @@ export class InternalActionRecorder
 					const setIdSafe = validateActionSetId(setId as any)
 					if (setIdSafe === undefined) throw new Error('Invalid setId')
 
-					this.#actionRecorder.saveToControlId(controlId, stepId, setIdSafe, action.rawOptions.mode)
+					this.#actionRecorder.saveToControlId(controlId, stepId, setIdSafe, action.options.mode as any)
 				} catch (e) {
 					// We don't have a good way to present this to the user, so ignore it for now. They should notice that it didnt work
 					this.#logger.info(`action_recorder_save_to_button failed: ${e}`)

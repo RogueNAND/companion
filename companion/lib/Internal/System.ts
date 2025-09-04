@@ -17,6 +17,7 @@ import systeminformation from 'systeminformation'
 import type { CompanionVariableValues } from '@companion-module/base'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
 import type {
+	ActionForInternalExecution,
 	ActionForVisitor,
 	FeedbackForVisitor,
 	InternalActionDefinition,
@@ -25,7 +26,6 @@ import type {
 	InternalVisitor,
 } from './Types.js'
 import type { VariablesController } from '../Variables/Controller.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { promisify } from 'util'
 import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
@@ -291,23 +291,26 @@ export class InternalSystem extends EventEmitter<InternalModuleFragmentEvents> i
 		return actions
 	}
 
-	async executeAction(action: ControlEntityInstance, extras: RunActionExtras): Promise<boolean> {
+	async executeAction(action: ActionForInternalExecution, extras: RunActionExtras): Promise<boolean> {
 		if (action.definitionId === 'exec') {
-			if (action.rawOptions.path) {
-				const path = this.#internalUtils.parseVariablesForInternalActionOrFeedback(action.rawOptions.path, extras).text
+			if (action.options.path) {
+				const path = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
+					String(action.options.path),
+					extras
+				).text
 				this.#logger.silly(`Running path: '${path}'`)
 
 				try {
 					const { stdout } = await execAsync(path, {
-						timeout: action.rawOptions.timeout ?? 5000,
+						timeout: Number(action.options.timeout) || 5000,
 					})
 
 					// Trim EOL character(s) appended by the OS
 					let stdoutStr = stdout.toString()
 					if (stdoutStr.endsWith(os.EOL)) stdoutStr = stdoutStr.substring(0, stdoutStr.length - os.EOL.length)
 
-					if (action.rawOptions.targetVariable) {
-						this.#variableController.custom.setValue(action.rawOptions.targetVariable, stdoutStr)
+					if (action.options.targetVariable) {
+						this.#variableController.custom.setValue(String(action.options.targetVariable), stdoutStr)
 					}
 				} catch (error) {
 					this.#logger.error('Shell command failed. Guru meditation: ' + JSON.stringify(error))
@@ -317,7 +320,7 @@ export class InternalSystem extends EventEmitter<InternalModuleFragmentEvents> i
 			return true
 		} else if (action.definitionId === 'custom_log') {
 			const message = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-				action.rawOptions.message,
+				String(action.options.message),
 				extras
 			).text
 			this.#customMessageLogger.info(message)

@@ -20,6 +20,7 @@ import type {
 	ExecuteFeedbackResultWithReferences,
 	InternalModuleFragmentEvents,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { CompanionInputFieldDropdown } from '@companion-module/base'
 import {
@@ -397,7 +398,7 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 	}
 
 	#updateLocalVariableValue(
-		action: ControlEntityInstance,
+		action: ActionForInternalExecution,
 		extras: RunActionExtras,
 		updateValue: (
 			entityPool: ControlEntityListPoolBase,
@@ -405,9 +406,9 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 			variableEntity: ControlEntityInstance
 		) => void
 	) {
-		if (!action.rawOptions.name) return
+		if (!action.options.name) return
 
-		const { theControlId } = this.#fetchLocationAndControlId(action.rawOptions, extras, true)
+		const { theControlId } = this.#fetchLocationAndControlId(action.options, extras, true)
 		if (!theControlId) return
 
 		const control = this.#controlsController.getControl(theControlId)
@@ -415,7 +416,7 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 
 		const variableEntity = control.entities
 			.getAllEntities()
-			.find((ent) => ent.rawLocalVariableName === action.rawOptions.name)
+			.find((ent) => ent.rawLocalVariableName === action.options.name)
 		if (!variableEntity) return
 
 		const localVariableName = variableEntity.localVariableName
@@ -426,24 +427,24 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 		updateValue(control.entities, 'local-variables', variableEntity) // TODO - dynamic listId
 	}
 
-	executeAction(action: ControlEntityInstance, extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'local_variable_set_value') {
 			this.#updateLocalVariableValue(action, extras, (entityPool, listId, variableEntity) => {
-				entityPool.entitySetVariableValue(listId, variableEntity.id, action.rawOptions.value)
+				entityPool.entitySetVariableValue(listId, variableEntity.id, action.options.value)
 			})
 
 			return true
 		} else if (action.definitionId === 'local_variable_set_expression') {
 			this.#updateLocalVariableValue(action, extras, (entityPool, listId, variableEntity) => {
 				const result = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
-					action.rawOptions.expression,
+					String(action.options.expression),
 					extras
 				)
 				if (result.ok) {
 					entityPool.entitySetVariableValue(listId, variableEntity.id, result.value)
 				} else {
 					const logger = LogController.createLogger(`Internal/Variables/${extras.controlId}`)
-					logger.warn(`${result.error}, in expression: "${action.rawOptions.expression}"`)
+					logger.warn(`${result.error}, in expression: "${action.options.expression}"`)
 				}
 			})
 

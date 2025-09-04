@@ -20,11 +20,11 @@ import type {
 	InternalFeedbackDefinition,
 	InternalModuleFragmentEvents,
 	FeedbackForInternalExecution,
+	ActionForInternalExecution,
 } from './Types.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import { FeedbackEntitySubType, type ActionEntityModel } from '@companion-app/shared/Model/EntityModel.js'
-import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
 import { EventEmitter } from 'events'
 import type { InternalModuleUtils } from './Util.js'
 
@@ -118,22 +118,22 @@ export class InternalTriggers extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	}
 
-	executeAction(action: ControlEntityInstance, _extras: RunActionExtras): boolean {
+	executeAction(action: ActionForInternalExecution, _extras: RunActionExtras): boolean {
 		if (action.definitionId === 'trigger_enabled') {
-			const control = this.#controlsController.getControl(action.rawOptions.trigger_id)
+			const control = this.#controlsController.getControl(String(action.options.trigger_id))
 			if (!control || control.type !== 'trigger' || !control.supportsOptions) return false
 
-			let newState = action.rawOptions.enable == 'true'
-			if (action.rawOptions.enable == 'toggle') newState = !control.options.enabled
+			let newState = action.options.enable == 'true'
+			if (action.options.enable == 'toggle') newState = !control.options.enabled
 
 			control.optionsSetField('enabled', newState)
 
 			return true
 		} else if (action.definitionId === 'trigger_collection_enabled') {
-			let newState: boolean | 'toggle' = action.rawOptions.enable == 'true'
-			if (action.rawOptions.enable == 'toggle') newState = 'toggle'
+			let newState: boolean | 'toggle' = action.options.enable == 'true'
+			if (action.options.enable == 'toggle') newState = 'toggle'
 
-			this.#controlsController.setTriggerCollectionEnabled(action.rawOptions.collection_id, newState)
+			this.#controlsController.setTriggerCollectionEnabled(String(action.options.collection_id), newState)
 
 			return true
 		} else {
