@@ -203,15 +203,24 @@ export const OptionsInputField = observer(function OptionsInputField({
 	if (control === undefined) {
 		control = <CInputGroupText>Unknown type "{option.type}"</CInputGroupText>
 	} else if (fieldsSupportExpressions) {
+		const rawExpressionValue = (rawValue as ExpressionOrValue<any>) || { isExpression: false, value: undefined }
+
 		control = (
 			<FieldOrExpression
 				localVariablesStore={localVariablesStore!}
-				value={rawValue as ExpressionOrValue<any>}
+				value={rawExpressionValue}
 				setValue={(val) => setValue(option.id, val)}
 			>
 				{control}
 			</FieldOrExpression>
 		)
+
+		// Update the features in the label when toggling the mode
+		if (rawExpressionValue?.isExpression) {
+			if (!features) features = {}
+			features.local = true
+			features.variables = true
+		}
 	}
 
 	return (
