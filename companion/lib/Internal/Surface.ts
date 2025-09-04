@@ -64,10 +64,6 @@ const CHOICES_PAGE: SomeCompanionInputField = {
 	includeStartup: true,
 	includeDirection: true,
 	default: 0,
-	isVisibleUi: {
-		type: 'expression',
-		fn: '!$(options:page_from_variable)',
-	},
 }
 
 export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
@@ -352,6 +348,21 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			)
 		}
 
+		if (action.definitionId === 'set_page_byindex' && action.options.controller_from_variable !== undefined) {
+			changed = true
+
+			convertOldSplitOptionToExpression(
+				action.options,
+				{
+					useVariables: 'controller_from_variable',
+					simple: 'controller',
+					variable: 'controller_variable',
+					result: 'surfaceId',
+				},
+				true
+			)
+		}
+
 		if (action.definitionId === 'surface_set_position') {
 			changed = convertSimplePropertyToExpresionValue(action.options, 'x_offset') || changed
 			changed = convertSimplePropertyToExpresionValue(action.options, 'y_offset') || changed
@@ -360,8 +371,6 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			changed = convertSimplePropertyToExpresionValue(action.options, 'x_adjustment') || changed
 			changed = convertSimplePropertyToExpresionValue(action.options, 'y_adjustment') || changed
 		}
-
-		// TODO - set_page_byindex controller
 
 		if (changed) return action
 	}
@@ -414,41 +423,14 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 				description: undefined,
 				options: [
 					{
-						type: 'checkbox',
-						label: 'Use variables for surface',
-						id: 'controller_from_variable',
-						default: false,
-						disableAutoExpression: true,
-					},
-					{
 						type: 'number',
 						label: 'Surface / group index',
-						id: 'controller',
+						id: 'surfaceId',
 						tooltip: 'Check the ID column in the surfaces tab',
 						min: 0,
 						max: 100,
 						default: 0,
 						range: false,
-						isVisibleUi: {
-							type: 'expression',
-							fn: '!$(options:controller_from_variable)',
-						},
-						disableAutoExpression: true,
-					},
-					{
-						type: 'textinput',
-						label: 'Surface / group index',
-						id: 'controller_variable',
-						tooltip: 'Check the ID column in the surfaces tab',
-						default: '0',
-						isVisibleUi: {
-							type: 'expression',
-							fn: '!!$(options:controller_from_variable)',
-						},
-						useVariables: {
-							local: true,
-						},
-						disableAutoExpression: true,
 					},
 
 					CHOICES_PAGE,
