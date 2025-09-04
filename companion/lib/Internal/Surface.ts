@@ -171,7 +171,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			return thePageNumber
 		}
 
-		return this.#pageStore.getPageInfo(Number(`thePageNumber`))?.id
+		return this.#pageStore.getPageInfo(Number(thePageNumber))?.id
 	}
 
 	getVariableDefinitions(): VariableDefinitionTmp[] {
@@ -425,7 +425,7 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 					{
 						type: 'number',
 						label: 'Surface / group index',
-						id: 'surfaceId',
+						id: 'surfaceIndex',
 						tooltip: 'Check the ID column in the surfaces tab',
 						min: 0,
 						max: 100,
@@ -563,22 +563,16 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 			if (!surfaceId) return true
 
 			const thePage = this.#fetchPage(action.options, extras, surfaceId)
+			console.log('set', thePage)
+
 			if (thePage === undefined) return true
 
 			this.#changeSurfacePage(surfaceId, thePage)
 			return true
 		} else if (action.definitionId === 'set_page_byindex') {
-			let surfaceIndex = action.options.controller
-			if (action.options.controller_from_variable) {
-				surfaceIndex = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-					String(action.options.controller_variable),
-					extras
-				).text
-			}
-
-			const surfaceIndexNumber = Number(surfaceIndex)
+			const surfaceIndexNumber = Number(action.options.surfaceIndex)
 			if (isNaN(surfaceIndexNumber) || surfaceIndexNumber < 0) {
-				this.#logger.warn(`Trying to set controller #${surfaceIndex} but it isn't a valid index.`)
+				this.#logger.warn(`Trying to set controller #${action.options.surfaceIndex} but it isn't a valid index.`)
 				return true
 			}
 

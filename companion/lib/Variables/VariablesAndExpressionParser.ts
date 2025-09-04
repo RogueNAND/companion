@@ -106,8 +106,6 @@ export class VariablesAndExpressionParser {
 		if (entityDefinition.internalUsesAutoParser) {
 			// If the entity uses the auto parser, we can just parse all
 
-			console.log('parsing options', options)
-
 			for (const field of entityDefinition.options) {
 				const rawValue = options[field.id] as ExpressionOrValue<any> | undefined
 				if (typeof rawValue === 'object' && 'isExpression' in rawValue && typeof rawValue.isExpression === 'boolean') {
