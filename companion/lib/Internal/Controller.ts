@@ -97,7 +97,7 @@ export class InternalController {
 		this.#buildingBlocksFragment = new InternalBuildingBlocks(internalUtils)
 		this.#fragments = [
 			this.#buildingBlocksFragment,
-			new InternalActionRecorder(internalUtils, controlsController.actionRecorder, pageStore),
+			new InternalActionRecorder(controlsController.actionRecorder, pageStore),
 			new InternalInstance(instanceController),
 			new InternalTime(),
 			new InternalControls(internalUtils, graphicsController, controlsController, pageStore),

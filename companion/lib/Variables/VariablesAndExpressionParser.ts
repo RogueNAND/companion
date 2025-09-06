@@ -12,7 +12,7 @@ import { isInternalLogicFeedback, type ControlEntityInstance } from '../Controls
 import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
 import type { ClientEntityDefinition } from '@companion-app/shared/Model/EntityDefinitionModel.js'
 import type { OptionsObject } from '@companion-module/base/dist/util.js'
-import type { ExpressionOrValue } from '@companion-app/shared/Model/Options.js'
+import { isExpressionOrValue, type ExpressionOrValue } from '@companion-app/shared/Model/Options.js'
 
 /**
  * A class to parse and execute expressions with variables
@@ -108,7 +108,7 @@ export class VariablesAndExpressionParser {
 
 			for (const field of entityDefinition.options) {
 				const rawValue = options[field.id] as ExpressionOrValue<any> | undefined
-				if (typeof rawValue === 'object' && 'isExpression' in rawValue && typeof rawValue.isExpression === 'boolean') {
+				if (isExpressionOrValue(rawValue)) {
 					// Field is in the new format
 
 					if (rawValue.isExpression) {

@@ -784,7 +784,6 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 	}
 
 	visitReferences(_visitor: InternalVisitor, _actions: ActionForVisitor[], _feedbacks: FeedbackForVisitor[]): void {
-		// actions page_variable handled by generic options visitor
-		// actions controller_variable handled by generic options visitor
+		// Nothing to do
 	}
 }

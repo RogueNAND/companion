@@ -200,6 +200,8 @@ export const OptionsInputField = observer(function OptionsInputField({
 			break
 	}
 
+	let description = option.description
+
 	if (control === undefined) {
 		control = <CInputGroupText>Unknown type "{option.type}"</CInputGroupText>
 	} else if (fieldsSupportExpressions) {
@@ -220,6 +222,10 @@ export const OptionsInputField = observer(function OptionsInputField({
 			if (!features) features = {}
 			features.local = true
 			features.variables = true
+
+			if (option.expressionDescription !== undefined) {
+				description = option.expressionDescription
+			}
 		}
 	}
 
@@ -233,7 +239,7 @@ export const OptionsInputField = observer(function OptionsInputField({
 			</CFormLabel>
 			<CCol sm={8} className={classNames({ displayNone: !visibility })}>
 				{control}
-				{option.description && <div className="form-text">{option.description}</div>}
+				{description && <div className="form-text">{description}</div>}
 			</CCol>
 		</>
 	)

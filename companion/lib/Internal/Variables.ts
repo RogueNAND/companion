@@ -109,18 +109,6 @@ export class InternalVariables extends EventEmitter<InternalModuleFragmentEvents
 						default: '',
 					},
 				],
-
-				// TODO
-				// learn: (fb) => {
-				// 	let value = ''
-				// 	const id = fb.options.variable.split(':')
-				// 	self.system.emit('variable_get', id[0], id[1], (v) => (value = v))
-
-				// 	return {
-				// 		...fb.options,
-				// 		value: value,
-				// 	}
-				// },
 			},
 
 			variable_variable: {

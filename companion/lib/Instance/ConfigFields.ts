@@ -251,13 +251,14 @@ function translateCommonFields(
 	field: EncodeIsVisible<CompanionInputFieldBase>
 ): Pick<
 	Complete<CompanionInputFieldBaseExtended>,
-	'id' | 'label' | 'tooltip' | 'description' | 'isVisibleUi' | 'disableAutoExpression'
+	'id' | 'label' | 'tooltip' | 'description' | 'expressionDescription' | 'isVisibleUi' | 'disableAutoExpression'
 > {
 	return {
 		id: field.id,
 		label: field.label,
 		tooltip: field.tooltip,
 		description: field.description,
+		expressionDescription: undefined, // Temporary until #2345
 		isVisibleUi: translateIsVisibleFn(field),
 		disableAutoExpression: true, // Temporary until #2345
 	}

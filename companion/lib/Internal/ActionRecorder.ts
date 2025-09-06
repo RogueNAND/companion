@@ -25,8 +25,8 @@ import type {
 } from './Types.js'
 import type { RunActionExtras, VariableDefinitionTmp } from '../Instance/Wrapper.js'
 import { validateActionSetId } from '@companion-app/shared/ControlId.js'
-import { FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
-import type { InternalModuleUtils } from './Util.js'
+import { ActionEntityModel, FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
+import { convertSimplePropertyToExpresionValue } from './Util.js'
 import { EventEmitter } from 'events'
 
 export class InternalActionRecorder
@@ -35,14 +35,12 @@ export class InternalActionRecorder
 {
 	readonly #logger = LogController.createLogger('Internal/ActionRecorder')
 
-	readonly #internalUtils: InternalModuleUtils
 	readonly #actionRecorder: ActionRecorder
 	readonly #pageStore: IPageStore
 
-	constructor(internalUtils: InternalModuleUtils, actionRecorder: ActionRecorder, pageStore: IPageStore) {
+	constructor(actionRecorder: ActionRecorder, pageStore: IPageStore) {
 		super()
 
-		this.#internalUtils = internalUtils
 		this.#actionRecorder = actionRecorder
 		this.#pageStore = pageStore
 
@@ -80,8 +78,10 @@ export class InternalActionRecorder
 							{ id: 'true', label: 'Yes' },
 							{ id: 'false', label: 'No' },
 						],
+						expressionDescription: `Valid values are 'true', 'false', or 'toggle'`,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			action_recorder_set_connections: {
 				label: 'Action Recorder: Set connections',
@@ -98,6 +98,7 @@ export class InternalActionRecorder
 							{ id: 'remove', label: 'Remove the selected connections' },
 							{ id: 'toggle', label: 'Toggle the selected connections' },
 						],
+						disableAutoExpression: true,
 					},
 					{
 						type: 'internal:connection_id',
@@ -107,8 +108,10 @@ export class InternalActionRecorder
 						includeAll: false,
 						filterActionsRecorder: true,
 						default: [],
+						disableAutoExpression: true,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			action_recorder_save_to_button: {
 				label: 'Action Recorder: Finish recording and save to button',
@@ -116,7 +119,8 @@ export class InternalActionRecorder
 				options: [
 					{
 						type: 'textinput',
-						label: 'Page (0 = this page)',
+						label: 'Page',
+						description: '(0 = this page)',
 						id: 'page',
 						default: '0',
 						useVariables: {
@@ -125,7 +129,8 @@ export class InternalActionRecorder
 					},
 					{
 						type: 'textinput',
-						label: 'Button (0 = this position)',
+						label: 'Button',
+						description: '(0 = this position)',
 						id: 'bank',
 						default: '0',
 						useVariables: {
@@ -134,7 +139,8 @@ export class InternalActionRecorder
 					},
 					{
 						type: 'textinput',
-						label: 'Button Step (eg 1, 2)',
+						label: 'Button Step',
+						description: 'eg 1, 2',
 						id: 'step',
 						default: '1',
 						useVariables: {
@@ -143,7 +149,8 @@ export class InternalActionRecorder
 					},
 					{
 						type: 'textinput',
-						label: 'Action Group (eg press, release, rotate_left, rotate_right, 1000, 2000)',
+						label: 'Action Group',
+						description: 'eg press, release, rotate_left, rotate_right, 1000, 2000',
 						id: 'set',
 						default: 'press',
 						useVariables: {
@@ -159,23 +166,45 @@ export class InternalActionRecorder
 							{ id: 'replace', label: 'Replace existing actions' },
 							{ id: 'append', label: 'Append after existing actions' },
 						],
+						expressionDescription: 'Valid values are "replace" or "append"',
+						disableAutoExpression: true,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			action_recorder_discard_actions: {
 				label: 'Action Recorder: Discard actions',
 				description: undefined,
 				options: [],
+				internalUsesAutoParser: true,
 			},
 		}
+	}
+
+	actionUpgrade(action: ActionEntityModel, _controlId: string): void | ActionEntityModel {
+		let changed = false
+
+		if (action.definitionId === 'action_recorder_set_recording') {
+			changed = convertSimplePropertyToExpresionValue(action.options, 'enable') || changed
+		} else if (action.definitionId === 'action_recorder_save_to_button') {
+			changed = convertSimplePropertyToExpresionValue(action.options, 'page') || changed
+			changed = convertSimplePropertyToExpresionValue(action.options, 'bank') || changed
+			changed = convertSimplePropertyToExpresionValue(action.options, 'step') || changed
+			changed = convertSimplePropertyToExpresionValue(action.options, 'set') || changed
+		}
+
+		if (changed) return action
 	}
 
 	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'action_recorder_set_recording') {
 			const session = this.#actionRecorder.getSession()
 			if (session) {
-				let newState = action.options.enable == 'true'
-				if (action.options.enable == 'toggle') newState = !session.isRunning
+				const rawEnable =
+					typeof action.options.enable === 'string' ? action.options.enable.trim().toLowerCase() : action.options.enable
+
+				let newState = typeof rawEnable === 'boolean' ? rawEnable : rawEnable == 'true'
+				if (rawEnable == 'toggle') newState = !session.isRunning
 
 				this.#actionRecorder.setRecording(newState)
 			}
@@ -217,25 +246,14 @@ export class InternalActionRecorder
 
 			return true
 		} else if (action.definitionId === 'action_recorder_save_to_button') {
-			let stepId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-				String(action.options.step),
-				extras
-			).text
-			let setId = this.#internalUtils.parseVariablesForInternalActionOrFeedback(String(action.options.set), extras).text
-			const pageRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-				String(action.options.page),
-				extras
-			).text
-			const bankRaw = this.#internalUtils.parseVariablesForInternalActionOrFeedback(
-				String(action.options.bank),
-				extras
-			).text
+			let stepId = String(action.options.step)
+			let setId = String(action.options.set)
 
 			if (setId === 'press') setId = 'down'
 			else if (setId === 'release') setId = 'up'
 
-			let page = Number(pageRaw)
-			const bank = Number(bankRaw)
+			let page = Number(action.options.page)
+			const bank = Number(action.options.bank)
 			if (!isNaN(page) && !isNaN(bank) && setId && stepId) {
 				let controlId: string | null = null
 
@@ -295,6 +313,7 @@ export class InternalActionRecorder
 						includeAll: false,
 						filterActionsRecorder: true,
 						default: [],
+						disableAutoExpression: true,
 					},
 					{
 						type: 'dropdown',
@@ -305,6 +324,7 @@ export class InternalActionRecorder
 							{ id: 'any', label: 'Any of the selected' },
 							{ id: 'all', label: 'All selected' },
 						],
+						disableAutoExpression: true,
 					},
 					{
 						type: 'dropdown',
@@ -315,8 +335,10 @@ export class InternalActionRecorder
 							{ id: 'recording', label: 'Recording is running' },
 							{ id: 'selected', label: 'Connections are selected' },
 						],
+						disableAutoExpression: true,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 		}
 	}

@@ -1,3 +1,4 @@
+import { isExpressionOrValue } from '@companion-app/shared/Model/Options.js'
 import type { InternalVisitor } from '../../Internal/Types.js'
 import { EntityModelType, SomeEntityModel } from '@companion-app/shared/Model/EntityModel.js'
 
@@ -17,7 +18,7 @@ export function visitEntityModel(visitor: InternalVisitor, entity: SomeEntityMod
 	// Fixup any references in entity options
 	for (const key of Object.keys(entity.options || {})) {
 		const origValue = entity.options[key]
-		if (origValue && typeof origValue === 'object' && 'isExpression' in origValue && origValue.isExpression) {
+		if (isExpressionOrValue(origValue) && origValue.isExpression) {
 			// Wrapped option
 			visitor.visitString(origValue, 'value', entity.id)
 		} else {

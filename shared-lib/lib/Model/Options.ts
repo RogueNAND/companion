@@ -36,6 +36,8 @@ export interface CompanionInputFieldBaseExtended {
 	tooltip?: string
 	/** A description for this field */
 	description?: string
+	/** A description for this field when in expression mode. This will replace the normal description */
+	expressionDescription?: string
 
 	isVisibleUi?: IsVisibleUiFn
 
@@ -229,4 +231,9 @@ export type SomeCompanionInputField = ExtendedInputField | SomeCompanionConfigIn
 export type ExpressionOrValue<T> = { value: T; isExpression: false } | { value: string; isExpression: true }
 export type ExpressionableOptionsObject = {
 	[key: string]: ExpressionOrValue<any> | undefined
+}
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function isExpressionOrValue(input: any): input is ExpressionOrValue<any> {
+	return !!input && typeof input === 'object' && 'isExpression' in input && typeof input.isExpression === 'boolean'
 }

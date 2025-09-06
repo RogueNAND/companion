@@ -347,7 +347,15 @@ export class InternalSystem extends EventEmitter<InternalModuleFragmentEvents> i
 		}
 	}
 
-	visitReferences(_visitor: InternalVisitor, _actions: ActionForVisitor[], _feedbacks: FeedbackForVisitor[]): void {
-		// Nothing to do
+	visitReferences(visitor: InternalVisitor, actions: ActionForVisitor[], _feedbacks: FeedbackForVisitor[]): void {
+		for (const action of actions) {
+			try {
+				if (action.action === 'exec') {
+					visitor.visitVariableName(action.options, 'targetVariable')
+				}
+			} catch (_e) {
+				//Ignore
+			}
+		}
 	}
 }
