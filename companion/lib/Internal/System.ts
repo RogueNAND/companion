@@ -250,6 +250,8 @@ export class InternalSystem extends EventEmitter<InternalModuleFragmentEvents> i
 						label: 'Target Variable (stdout)',
 						id: 'targetVariable',
 						includeNone: true,
+						expressionDescription:
+							'The name of the custom variable. Just the portion after the "custom:" prefix. Make sure to wrap it in quotes!',
 					},
 				],
 				internalUsesAutoParser: true,

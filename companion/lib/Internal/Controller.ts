@@ -101,7 +101,7 @@ export class InternalController {
 			new InternalInstance(instanceController),
 			new InternalTime(),
 			new InternalControls(internalUtils, graphicsController, controlsController, pageStore),
-			new InternalCustomVariables(internalUtils, variablesController),
+			new InternalCustomVariables(variablesController),
 			new InternalPage(pageStore),
 			new InternalSurface(surfaceController, controlsController, pageStore),
 			new InternalSystem(userConfigController, variablesController, requestExit),
