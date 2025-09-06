@@ -16,6 +16,13 @@ export function visitEntityModel(visitor: InternalVisitor, entity: SomeEntityMod
 
 	// Fixup any references in entity options
 	for (const key of Object.keys(entity.options || {})) {
-		visitor.visitString(entity.options, key, entity.id)
+		const origValue = entity.options[key]
+		if (origValue && typeof origValue === 'object' && 'isExpression' in origValue && origValue.isExpression) {
+			// Wrapped option
+			visitor.visitString(origValue, 'value', entity.id)
+		} else {
+			// Unwrapped option
+			visitor.visitString(entity.options, key, entity.id)
+		}
 	}
 }
