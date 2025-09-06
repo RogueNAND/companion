@@ -11,7 +11,6 @@
 
 import { InternalBuildingBlocks } from './BuildingBlocks.js'
 import { cloneDeep } from 'lodash-es'
-import { InternalModuleUtils } from './Util.js'
 import type {
 	ActionForVisitor,
 	FeedbackForVisitor,
@@ -92,8 +91,6 @@ export class InternalController {
 		this.#instanceDefinitions = instanceController.definitions
 		this.#variablesController = variablesController
 
-		const internalUtils = new InternalModuleUtils(controlsController)
-
 		this.#buildingBlocksFragment = new InternalBuildingBlocks()
 		this.#fragments = [
 			this.#buildingBlocksFragment,
@@ -106,7 +103,7 @@ export class InternalController {
 			new InternalSurface(surfaceController, controlsController, pageStore),
 			new InternalSystem(userConfigController, variablesController, requestExit),
 			new InternalTriggers(controlsController),
-			new InternalVariables(internalUtils, controlsController, pageStore),
+			new InternalVariables(controlsController, pageStore),
 		]
 
 		this.#init()
@@ -299,11 +296,11 @@ export class InternalController {
 				feedback.entityModel.definitionId
 			)
 
+			const parser = this.#controlsController.createVariablesAndExpressionParser(feedback.controlId, null)
+
 			// Parse the otpions if enabled
 			const { parsedOptions, referencedVariableIds } = entityDefinition?.internalUsesAutoParser
-				? this.#controlsController
-						.createVariablesAndExpressionParser(feedback.controlId, null)
-						.parseEntityOptions(entityDefinition, feedback.entityModel.options)
+				? parser.parseEntityOptions(entityDefinition, feedback.entityModel.options)
 				: { parsedOptions: feedback.entityModel.options as OptionsObject, referencedVariableIds: new Set<string>() }
 
 			const executionFeedback: Complete<FeedbackForInternalExecution> = {
@@ -321,7 +318,7 @@ export class InternalController {
 				if ('executeFeedback' in fragment && typeof fragment.executeFeedback === 'function') {
 					let value: ReturnType<Required<InternalModuleFragment>['executeFeedback']> | undefined
 					try {
-						value = fragment.executeFeedback(executionFeedback)
+						value = fragment.executeFeedback(executionFeedback, parser)
 					} catch (e: any) {
 						this.#logger.silly(
 							`Feedback check failed: ${JSON.stringify(executionFeedback)} - ${e?.message ?? e} ${e?.stack}`
@@ -619,13 +616,6 @@ export class InternalController {
 
 	onVariablesChanged(changedVariablesSet: Set<string>, fromControlId: string | null): void {
 		if (!this.#initialized) throw new Error(`InternalController is not initialized`)
-
-		// Inform all fragments
-		for (const fragment of this.#fragments) {
-			if (typeof fragment.onVariablesChanged === 'function') {
-				fragment.onVariablesChanged(changedVariablesSet, fromControlId)
-			}
-		}
 
 		const newValues: NewFeedbackValue[] = []
 

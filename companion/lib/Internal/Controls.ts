@@ -17,7 +17,6 @@ import type {
 	FeedbackForVisitor,
 	InternalModuleFragment,
 	InternalVisitor,
-	ExecuteFeedbackResultWithReferences,
 	ActionForVisitor,
 	InternalActionDefinition,
 	InternalFeedbackDefinition,
@@ -115,7 +114,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	}
 
-	#fetchLocationAndControlIdNew(
+	#fetchLocationAndControlId(
 		options: Record<string, any>,
 		extras: RunActionExtras | FeedbackForInternalExecution
 	): {
@@ -482,11 +481,9 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 		if (changed) return feedback
 	}
 
-	executeFeedback(
-		feedback: FeedbackForInternalExecution
-	): ExecuteFeedbackResultWithReferences | CompanionFeedbackButtonStyleResult | boolean | void {
+	executeFeedback(feedback: FeedbackForInternalExecution): CompanionFeedbackButtonStyleResult | boolean | void {
 		if (feedback.definitionId === 'bank_style') {
-			const { theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
+			const { theLocation } = this.#fetchLocationAndControlId(feedback.options, feedback)
 
 			if (
 				!feedback.location ||
@@ -525,7 +522,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				return {}
 			}
 		} else if (feedback.definitionId === 'bank_pushed') {
-			const { theControlId, theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
+			const { theControlId, theLocation } = this.#fetchLocationAndControlId(feedback.options, feedback)
 
 			if (theLocation) {
 				this.#buttonDrawnSubscriptions.set(feedback.id, formatLocation(theLocation))
@@ -547,7 +544,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				return false
 			}
 		} else if (feedback.definitionId == 'bank_current_step') {
-			const { theControlId, theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
+			const { theControlId, theLocation } = this.#fetchLocationAndControlId(feedback.options, feedback)
 
 			if (theLocation) {
 				this.#buttonDrawnSubscriptions.set(feedback.id, formatLocation(theLocation))
@@ -805,7 +802,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 
 	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): boolean {
 		if (action.definitionId === 'button_pressrelease') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const forcePress = !!action.options.force
@@ -814,31 +811,31 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			this.#controlsController.pressControl(theControlId, false, extras.surfaceId, forcePress)
 			return true
 		} else if (action.definitionId === 'button_press') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			this.#controlsController.pressControl(theControlId, true, extras.surfaceId, !!action.options.force)
 			return true
 		} else if (action.definitionId === 'button_release') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			this.#controlsController.pressControl(theControlId, false, extras.surfaceId, !!action.options.force)
 			return true
 		} else if (action.definitionId === 'button_rotate_left') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			this.#controlsController.rotateControl(theControlId, false, extras.surfaceId)
 			return true
 		} else if (action.definitionId === 'button_rotate_right') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			this.#controlsController.rotateControl(theControlId, true, extras.surfaceId)
 			return true
 		} else if (action.definitionId === 'bgcolor') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
@@ -848,7 +845,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			}
 			return true
 		} else if (action.definitionId === 'textcolor') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
@@ -858,7 +855,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			}
 			return true
 		} else if (action.definitionId === 'button_text') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
@@ -886,7 +883,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				return true
 			}
 
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
@@ -936,7 +933,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			this.#controlsController.abortAllDelayedActions(action.options.ignoreCurrent ? extras.abortDelayed : null)
 			return true
 		} else if (action.definitionId == 'bank_current_step') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)
@@ -946,7 +943,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			}
 			return true
 		} else if (action.definitionId == 'bank_current_step_delta') {
-			const { theControlId } = this.#fetchLocationAndControlIdNew(action.options, extras)
+			const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 			if (!theControlId) return true
 
 			const control = this.#controlsController.getControl(theControlId)

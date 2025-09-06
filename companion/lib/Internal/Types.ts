@@ -91,7 +91,8 @@ export interface InternalModuleFragment extends EventEmitter<InternalModuleFragm
 	 * Get an updated value for a feedback
 	 */
 	executeFeedback?: (
-		feedback: FeedbackForInternalExecution
+		feedback: FeedbackForInternalExecution,
+		parser: VariablesAndExpressionParser
 	) => CompanionFeedbackButtonStyleResult | boolean | ExecuteFeedbackResultWithReferences | void
 
 	feedbackUpgrade?: (feedback: FeedbackEntityModel, controlId: string) => FeedbackEntityModel | void
@@ -105,8 +106,6 @@ export interface InternalModuleFragment extends EventEmitter<InternalModuleFragm
 
 	getVariableDefinitions?: () => VariableDefinitionTmp[]
 	updateVariables?: () => void
-
-	onVariablesChanged?: (changedVariablesSet: Set<string>, fromControlId: string | null) => void
 }
 
 export interface ExecuteFeedbackResultWithReferences {
