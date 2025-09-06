@@ -11,7 +11,7 @@ import type { ControlsController } from '../Controls/Controller.js'
 import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
 
 /**
- *
+ * @deprecated
  */
 export function ParseInternalControlReference(
 	logger: Logger,
@@ -23,6 +23,58 @@ export function ParseInternalControlReference(
 	location: ControlLocation | null
 	referencedVariables: ReadonlySet<string>
 } {
+	let location: ControlLocation | null = null
+	let referencedVariables: ReadonlySet<string> = new Set<string>()
+
+	let locationTarget = options.location_target
+	if (locationTarget?.startsWith('this:')) locationTarget = 'this'
+
+	switch (locationTarget) {
+		case 'this':
+			location = pressLocation
+				? {
+						pageNumber: pressLocation.pageNumber,
+						column: pressLocation.column,
+						row: pressLocation.row,
+					}
+				: null
+			break
+		case 'text':
+			if (useVariableFields) {
+				const result = parser.parseVariables(options.location_text)
+
+				location = ParseLocationString(result.text, pressLocation)
+				referencedVariables = result.variableIds
+			} else {
+				location = ParseLocationString(options.location_text, pressLocation)
+			}
+			break
+		case 'expression':
+			if (useVariableFields) {
+				const result = parser.executeExpression(options.location_expression, 'string')
+				if (result.ok) {
+					location = ParseLocationString(String(result.value), pressLocation)
+				} else {
+					logger.warn(`${result.error}, in expression: "${options.location_expression}"`)
+				}
+				referencedVariables = result.variableIds
+			}
+			break
+	}
+
+	return { location, referencedVariables }
+}
+
+export function ParseLocationString(
+	str: string | undefined,
+	pressLocation: ControlLocation | undefined
+): ControlLocation | null {
+	if (!str) return null
+
+	str = str.trim().toLowerCase()
+
+	if (str.startsWith('this')) return pressLocation ?? null
+
 	const sanitisePageNumber = (pageNumber: number): number | null => {
 		return pageNumber == 0 ? (pressLocation?.pageNumber ?? null) : pageNumber
 	}
@@ -47,82 +99,85 @@ export function ParseInternalControlReference(
 		}
 	}
 
-	const parseLocationString = (str: string | undefined): ControlLocation | null => {
-		if (!str) return null
+	const parts = str.split('/') // TODO - more chars
 
-		const parts = str.split('/') // TODO - more chars
+	// TODO - this is horrible, and needs reworking to be simpler
 
-		// TODO - this is horrible, and needs reworking to be simpler
-
-		if (parts.length === 1 && parts[0].startsWith('bank')) {
-			return pressLocation ? parseBankString(pressLocation.pageNumber, parts[0].slice(4)) : null
-		} else if (parts.length === 2) {
-			if (parts[1].startsWith('bank')) {
-				const safePageNumber = sanitisePageNumber(Number(parts[0]))
-				if (safePageNumber === null) return null
-				return parseBankString(safePageNumber, parts[1].slice(4))
-			} else {
-				return pressLocation
-					? {
-							pageNumber: pressLocation.pageNumber,
-							column: Number(parts[1]),
-							row: Number(parts[0]),
-						}
-					: null
-			}
-		} else if (parts.length === 3) {
+	if (parts.length === 1 && parts[0].startsWith('bank')) {
+		return pressLocation ? parseBankString(pressLocation.pageNumber, parts[0].slice(4)) : null
+	} else if (parts.length === 2) {
+		if (parts[1].startsWith('bank')) {
 			const safePageNumber = sanitisePageNumber(Number(parts[0]))
 			if (safePageNumber === null) return null
-			return {
-				pageNumber: safePageNumber,
-				column: Number(parts[2]),
-				row: Number(parts[1]),
-			}
+			return parseBankString(safePageNumber, parts[1].slice(4))
 		} else {
-			return null
-		}
-	}
-
-	let location: ControlLocation | null = null
-	let referencedVariables: ReadonlySet<string> = new Set<string>()
-
-	let locationTarget = options.location_target
-	if (locationTarget?.startsWith('this:')) locationTarget = 'this'
-
-	switch (locationTarget) {
-		case 'this':
-			location = pressLocation
+			return pressLocation
 				? {
 						pageNumber: pressLocation.pageNumber,
-						column: pressLocation.column,
-						row: pressLocation.row,
+						column: Number(parts[1]),
+						row: Number(parts[0]),
 					}
 				: null
-			break
-		case 'text':
-			if (useVariableFields) {
-				const result = parser.parseVariables(options.location_text)
+		}
+	} else if (parts.length === 3) {
+		const safePageNumber = sanitisePageNumber(Number(parts[0]))
+		if (safePageNumber === null) return null
+		return {
+			pageNumber: safePageNumber,
+			column: Number(parts[2]),
+			row: Number(parts[1]),
+		}
+	} else {
+		return null
+	}
+}
 
-				location = parseLocationString(result.text)
-				referencedVariables = result.variableIds
-			} else {
-				location = parseLocationString(options.location_text)
-			}
-			break
-		case 'expression':
-			if (useVariableFields) {
-				const result = parser.executeExpression(options.location_expression, 'string')
-				if (result.ok) {
-					location = parseLocationString(String(result.value))
-				} else {
-					logger.warn(`${result.error}, in expression: "${options.location_expression}"`)
-				}
-				referencedVariables = result.variableIds
-			}
-			break
+export const CHOICES_LOCATION: SomeCompanionInputField = {
+	type: 'textinput',
+	label: 'Location',
+	description: 'eg 1/0/0 or $(this:page)/$(this:row)/$(this:column)',
+	expressionDescription: 'eg `1/0/0` or `${$(this:page) + 1}/${$(this:row)}/${$(this:column)}`',
+	id: 'location',
+	default: '$(this:page)/$(this:row)/$(this:column)',
+	useVariables: {
+		local: true,
+	},
+}
+
+export function convertOldLocationToExpressionOrValue(options: Record<string, any>): boolean {
+	if (options.location) return false
+
+	if (options.location_target === 'this:only-this-run') {
+		options.location = {
+			isExpression: false,
+			value: 'this-run',
+		} satisfies ExpressionOrValue<any>
+	} else if (options.location_target === 'this:all-runs') {
+		options.location = {
+			isExpression: false,
+			value: 'this-all-runs',
+		} satisfies ExpressionOrValue<any>
+	} else if (options.location_target === 'this') {
+		options.location = {
+			isExpression: false,
+			value: '$(this:location)',
+		} satisfies ExpressionOrValue<any>
+	} else if (options.location_target === 'expression') {
+		options.location = {
+			isExpression: true,
+			value: options.location_expression || '',
+		} satisfies ExpressionOrValue<any>
+	} else {
+		options.location = {
+			isExpression: false,
+			value: options.location_text || '',
+		} satisfies ExpressionOrValue<any>
 	}
 
-	return { location, referencedVariables }
+	delete options.location_target
+	delete options.location_text
+	delete options.location_expression
+	return true
 }
 
 export const CHOICES_DYNAMIC_LOCATION: SomeCompanionInputField[] = [

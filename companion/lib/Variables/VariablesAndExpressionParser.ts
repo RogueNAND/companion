@@ -129,7 +129,7 @@ export class VariablesAndExpressionParser {
 				} else if (field.type === 'textinput' && field.useVariables) {
 					// Field needs parsing
 					// Note - we don't need to care about the granularity given in `useVariables`,
-					const parseResult = this.parseVariables(String(options[field.id]))
+					const parseResult = this.parseVariables(String(rawValue.value))
 					parsedOptions[field.id] = parseResult.text
 
 					// Track the variables referenced in this field
