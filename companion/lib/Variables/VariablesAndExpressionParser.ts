@@ -123,6 +123,8 @@ export class VariablesAndExpressionParser {
 								referencedVariableIds.add(variable)
 							}
 						}
+
+						// TODO - check value is valid according to the rules
 					} else {
 						// Just use the value as-is
 						parsedOptions[field.id] = rawValue.value

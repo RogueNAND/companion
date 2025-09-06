@@ -27,7 +27,6 @@ import type {
 import type { CompanionFeedbackButtonStyleResult, CompanionVariableValues } from '@companion-module/base'
 import { FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
 import { EventEmitter } from 'events'
-import type { InternalModuleUtils } from './Util.js'
 
 export class InternalInstance extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
 	readonly #instanceController: InstanceController
@@ -73,7 +72,7 @@ export class InternalInstance extends EventEmitter<InternalModuleFragmentEvents>
 		}
 	)
 
-	constructor(_internalUrils: InternalModuleUtils, instanceController: InstanceController) {
+	constructor(instanceController: InstanceController) {
 		super()
 
 		this.#instanceController = instanceController

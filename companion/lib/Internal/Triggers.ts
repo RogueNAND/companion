@@ -26,12 +26,11 @@ import type { ControlsController } from '../Controls/Controller.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import { FeedbackEntitySubType, type ActionEntityModel } from '@companion-app/shared/Model/EntityModel.js'
 import { EventEmitter } from 'events'
-import type { InternalModuleUtils } from './Util.js'
 
 export class InternalTriggers extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
 	readonly #controlsController: ControlsController
 
-	constructor(_internalUtils: InternalModuleUtils, controlsController: ControlsController) {
+	constructor(controlsController: ControlsController) {
 		super()
 
 		this.#controlsController = controlsController

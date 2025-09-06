@@ -98,14 +98,14 @@ export class InternalController {
 		this.#fragments = [
 			this.#buildingBlocksFragment,
 			new InternalActionRecorder(internalUtils, controlsController.actionRecorder, pageStore),
-			new InternalInstance(internalUtils, instanceController),
-			new InternalTime(internalUtils),
+			new InternalInstance(instanceController),
+			new InternalTime(),
 			new InternalControls(internalUtils, graphicsController, controlsController, pageStore),
 			new InternalCustomVariables(internalUtils, variablesController),
 			new InternalPage(internalUtils, pageStore),
 			new InternalSurface(surfaceController, controlsController, pageStore),
-			new InternalSystem(internalUtils, userConfigController, variablesController, requestExit),
-			new InternalTriggers(internalUtils, controlsController),
+			new InternalSystem(userConfigController, variablesController, requestExit),
+			new InternalTriggers(controlsController),
 			new InternalVariables(internalUtils, controlsController, pageStore),
 		]
 
