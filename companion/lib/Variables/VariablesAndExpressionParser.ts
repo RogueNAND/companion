@@ -107,31 +107,40 @@ export class VariablesAndExpressionParser {
 			// If the entity uses the auto parser, we can just parse all
 
 			for (const field of entityDefinition.options) {
-				const rawValue = options[field.id] as ExpressionOrValue<any> | undefined
-				if (isExpressionOrValue(rawValue)) {
-					// Field is in the new format
+				// Get the value as an ExpressionOrValue
+				const rawValue: ExpressionOrValue<any> = isExpressionOrValue(options[field.id])
+					? (options[field.id] as any)
+					: { value: options[field.id], isExpression: field.type === 'textinput' && !!field.isExpression }
 
-					if (rawValue.isExpression) {
-						// Parse the expression
-						const parseResult = this.executeExpression(rawValue.value || '', undefined)
-						if (!parseResult.ok) throw new Error(parseResult.error)
-						parsedOptions[field.id] = parseResult.value
+				if (rawValue.isExpression) {
+					// Parse the expression
+					const parseResult = this.executeExpression(rawValue.value || '', undefined)
+					if (!parseResult.ok) throw new Error(parseResult.error)
+					parsedOptions[field.id] = parseResult.value
 
-						// Track the variables referenced in this field
-						if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
-							for (const variable of parseResult.variableIds) {
-								referencedVariableIds.add(variable)
-							}
+					// Track the variables referenced in this field
+					if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+						for (const variable of parseResult.variableIds) {
+							referencedVariableIds.add(variable)
 						}
+					}
 
-						// TODO - check value is valid according to the rules
-					} else {
-						// Just use the value as-is
-						parsedOptions[field.id] = rawValue.value
+					// TODO - check value is valid according to the rules
+				} else if (field.type === 'textinput' && field.useVariables) {
+					// Field needs parsing
+					// Note - we don't need to care about the granularity given in `useVariables`,
+					const parseResult = this.parseVariables(String(options[field.id]))
+					parsedOptions[field.id] = parseResult.text
+
+					// Track the variables referenced in this field
+					if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+						for (const variable of parseResult.variableIds) {
+							referencedVariableIds.add(variable)
+						}
 					}
 				} else {
-					// Field is in the old format, treat as an unwrapped value
-					parsedOptions[field.id] = rawValue
+					// Just use the value as-is
+					parsedOptions[field.id] = rawValue.value
 				}
 			}
 		} else {

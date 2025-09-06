@@ -21,7 +21,7 @@ import type {
 	ActionForInternalExecution,
 } from './Types.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
-import type { CompanionVariableValue } from '@companion-module/base'
+import type { CompanionVariableValue, CompanionVariableValues } from '@companion-module/base'
 import type { ControlsController, NewFeedbackValue } from '../Controls/Controller.js'
 import type { VariablesController } from '../Variables/Controller.js'
 import type { InstanceDefinitions } from '../Instance/Definitions.js'
@@ -94,7 +94,7 @@ export class InternalController {
 
 		const internalUtils = new InternalModuleUtils(controlsController)
 
-		this.#buildingBlocksFragment = new InternalBuildingBlocks(internalUtils)
+		this.#buildingBlocksFragment = new InternalBuildingBlocks()
 		this.#fragments = [
 			this.#buildingBlocksFragment,
 			new InternalActionRecorder(controlsController.actionRecorder, pageStore),
@@ -426,36 +426,38 @@ export class InternalController {
 		if (action.type !== EntityModelType.Action)
 			throw new Error(`Cannot execute entity of type "${action.type}" as an action`)
 
-		const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
-			EntityModelType.Action,
-			'internal',
-			action.definitionId
-		)
+		try {
+			const entityDefinition = this.#instanceDefinitions.getEntityDefinition(
+				EntityModelType.Action,
+				'internal',
+				action.definitionId
+			)
 
-		// Parse the otpions if enabled
-		const { parsedOptions } = entityDefinition?.internalUsesAutoParser
-			? this.#controlsController
-					.createVariablesAndExpressionParser(extras.controlId, null)
-					.parseEntityOptions(entityDefinition, action.rawOptions)
-			: { parsedOptions: action.rawOptions as OptionsObject }
+			const overrideVariableValues: CompanionVariableValues = {
+				'$(this:surface_id)': extras.surfaceId,
+			}
+			const parser = this.#controlsController.createVariablesAndExpressionParser(
+				extras.controlId,
+				overrideVariableValues
+			)
 
-		const executionAction: Complete<ActionForInternalExecution> = {
-			// controlId: action.controlId,
-			// location: action.location,
+			// Parse the options if enabled
+			const { parsedOptions } = entityDefinition?.internalUsesAutoParser
+				? parser.parseEntityOptions(entityDefinition, action.rawOptions)
+				: { parsedOptions: action.rawOptions as OptionsObject }
 
-			options: parsedOptions,
+			const executionAction: Complete<ActionForInternalExecution> = {
+				options: parsedOptions,
 
-			id: action.id,
-			definitionId: action.definitionId,
+				id: action.id,
+				definitionId: action.definitionId,
 
-			rawEntity: action,
-		}
-		// feedback.referencedVariables = referencedVariableIds
+				rawEntity: action,
+			}
 
-		for (const fragment of this.#fragments) {
-			if ('executeAction' in fragment && typeof fragment.executeAction === 'function') {
-				try {
-					let value = fragment.executeAction(executionAction, extras, this.#controlsController.actionRunner)
+			for (const fragment of this.#fragments) {
+				if ('executeAction' in fragment && typeof fragment.executeAction === 'function') {
+					let value = fragment.executeAction(executionAction, extras, this.#controlsController.actionRunner, parser)
 					// Only await if it is a promise, to avoid unnecessary async pauses
 					value = value instanceof Promise ? await value : value
 
@@ -463,14 +465,14 @@ export class InternalController {
 						// It was handled, so break
 						return
 					}
-				} catch (e: any) {
-					this.#logger.warn(
-						`Action execute failed: ${JSON.stringify(action.asEntityModel(false))}(${JSON.stringify(extras)}) - ${e?.message ?? e} ${
-							e?.stack
-						}`
-					)
 				}
 			}
+		} catch (e: any) {
+			this.#logger.warn(
+				`Action execute failed: ${JSON.stringify(action.asEntityModel(false))}(${JSON.stringify(extras)}) - ${e?.message ?? e} ${
+					e?.stack
+				}`
+			)
 		}
 	}
 

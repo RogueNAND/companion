@@ -14,6 +14,7 @@ import type { ActionRunner } from '../Controls/ActionRunner.js'
 import type { EventEmitter } from 'events'
 import type { OptionsObject } from '@companion-module/base/dist/util.js'
 import type { ControlEntityInstance } from '../Controls/Entities/EntityInstance.js'
+import type { VariablesAndExpressionParser } from '../Variables/VariablesAndExpressionParser.js'
 
 export interface FeedbackForInternalExecution {
 	controlId: string
@@ -74,7 +75,8 @@ export interface InternalModuleFragment extends EventEmitter<InternalModuleFragm
 	executeAction?(
 		action: ActionForInternalExecution,
 		extras: RunActionExtras,
-		actionRunner: ActionRunner
+		actionRunner: ActionRunner,
+		parser: VariablesAndExpressionParser
 	): Promise<boolean> | boolean
 
 	/**

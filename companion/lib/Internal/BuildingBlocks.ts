@@ -23,7 +23,6 @@ import type {
 import type { ActionRunner } from '../Controls/ActionRunner.js'
 import type { RunActionExtras } from '../Instance/Wrapper.js'
 import { EntityModelType, FeedbackEntityModel, FeedbackEntitySubType } from '@companion-app/shared/Model/EntityModel.js'
-import type { InternalModuleUtils } from './Util.js'
 import { EventEmitter } from 'events'
 
 export class InternalBuildingBlocks
@@ -31,14 +30,6 @@ export class InternalBuildingBlocks
 	implements InternalModuleFragment
 {
 	readonly #logger = LogController.createLogger('Internal/BuildingBlocks')
-
-	readonly #internalUtils: InternalModuleUtils
-
-	constructor(internalUtils: InternalModuleUtils) {
-		super()
-
-		this.#internalUtils = internalUtils
-	}
 
 	getFeedbackDefinitions(): Record<string, InternalFeedbackDefinition> {
 		return {
@@ -62,6 +53,7 @@ export class InternalBuildingBlocks
 							{ id: 'or', label: 'OR' },
 							{ id: 'xor', label: 'XOR' },
 						],
+						disableAutoExpression: true,
 					},
 				],
 				hasLearn: false,
@@ -75,6 +67,7 @@ export class InternalBuildingBlocks
 						label: '',
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 
 			logic_conditionalise_advanced: {
@@ -102,6 +95,7 @@ export class InternalBuildingBlocks
 						label: 'Feedbacks',
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 		}
 	}
@@ -125,6 +119,7 @@ export class InternalBuildingBlocks
 						tooltip:
 							`Using "Sequential" will run the actions one after the other, waiting for each to complete before starting the next.\n` +
 							`If the module doesn't support it for a particular action, the following action will start immediately.`,
+						disableAutoExpression: true,
 					},
 				],
 				hasLearn: false,
@@ -137,6 +132,7 @@ export class InternalBuildingBlocks
 						label: '',
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			wait: {
 				label: 'Wait',
@@ -149,10 +145,12 @@ export class InternalBuildingBlocks
 						default: '1000',
 						useVariables: { local: true },
 						isExpression: true,
+						disableAutoExpression: true,
 					},
 				],
 				hasLearn: false,
 				learnTimeout: undefined,
+				internalUsesAutoParser: true,
 			},
 			logic_if: {
 				label: 'Logic: If statement',
@@ -181,6 +179,7 @@ export class InternalBuildingBlocks
 						entityTypeLabel: 'action',
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 		}
 	}
@@ -238,16 +237,7 @@ export class InternalBuildingBlocks
 		if (action.definitionId === 'wait') {
 			if (extras.abortDelayed.aborted) return true
 
-			const expressionResult = this.#internalUtils.executeExpressionForInternalActionOrFeedback(
-				String(action.options.time),
-				extras,
-				'number'
-			)
-			if (!expressionResult.ok) {
-				this.#logger.error(`Failed to parse delay: ${expressionResult.error}`)
-			}
-
-			const delay = expressionResult.ok ? Number(expressionResult.value) : 0
+			const delay = Number(action.options.time)
 
 			if (!isNaN(delay) && delay > 0) {
 				// Perform the wait
