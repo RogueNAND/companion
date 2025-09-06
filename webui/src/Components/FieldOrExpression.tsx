@@ -30,9 +30,6 @@ export const FieldOrExpression = observer(function FieldOrExpression({
 		[setValue]
 	)
 
-	// Sanitise value a little
-	if (!value) value = { isExpression: false, value: undefined }
-
 	const setIsExpression = useCallback(
 		(isExpression: boolean) => {
 			console.log('setIsExpression', isExpression)
