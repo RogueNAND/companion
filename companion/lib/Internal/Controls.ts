@@ -39,16 +39,15 @@ import {
 } from '@companion-app/shared/Model/EntityModel.js'
 import { nanoid } from 'nanoid'
 import {
-	CHOICES_DYNAMIC_LOCATION,
 	CHOICES_LOCATION,
 	convertOldLocationToExpressionOrValue,
 	convertOldSplitOptionToExpression,
 	convertSimplePropertyToExpresionValue,
 	ParseLocationString,
-	type InternalModuleUtils,
 } from './Util.js'
 import { EventEmitter } from 'events'
 import { parseColorToNumber } from '../Resources/Util.js'
+import { CompanionFeedbackButtonStyleResult } from '@companion-module/base'
 
 const ButtonStylePropertiesExt = [
 	...ButtonStyleProperties,
@@ -57,7 +56,6 @@ const ButtonStylePropertiesExt = [
 ]
 
 export class InternalControls extends EventEmitter<InternalModuleFragmentEvents> implements InternalModuleFragment {
-	readonly #internalUtils: InternalModuleUtils
 	readonly #graphicsController: GraphicsController
 	readonly #controlsController: ControlsController
 	readonly #pageStore: IPageStore
@@ -67,15 +65,9 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 	 */
 	#buttonDrawnSubscriptions = new Map<string, string>()
 
-	constructor(
-		internalUtils: InternalModuleUtils,
-		graphicsController: GraphicsController,
-		controlsController: ControlsController,
-		pageStore: IPageStore
-	) {
+	constructor(graphicsController: GraphicsController, controlsController: ControlsController, pageStore: IPageStore) {
 		super()
 
-		this.#internalUtils = internalUtils
 		this.#graphicsController = graphicsController
 		this.#controlsController = controlsController
 		this.#pageStore = pageStore
@@ -120,30 +112,6 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 
 		return {
 			thePage,
-		}
-	}
-
-	#fetchLocationAndControlId(
-		options: Record<string, any>,
-		extras: RunActionExtras | FeedbackForInternalExecution,
-		useVariableFields = false
-	): {
-		theControlId: string | null
-		theLocation: ControlLocation | null
-		referencedVariables: string[]
-	} {
-		const result = this.#internalUtils.parseInternalControlReferenceForActionOrFeedback(
-			extras,
-			options,
-			useVariableFields
-		)
-
-		const theControlId = result.location ? this.#pageStore.getControlIdAt(result.location) : null
-
-		return {
-			theControlId,
-			theLocation: result.location,
-			referencedVariables: Array.from(result.referencedVariables),
 		}
 	}
 
@@ -415,7 +383,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				feedbackStyle: undefined,
 				showInvert: false,
 				options: [
-					...CHOICES_DYNAMIC_LOCATION,
+					CHOICES_LOCATION,
 					{
 						id: 'properties',
 						label: 'Properties',
@@ -423,8 +391,10 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 						minSelection: 1,
 						choices: ButtonStylePropertiesExt,
 						default: ButtonStylePropertiesExt.map((p) => p.id),
+						disableAutoExpression: true,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			bank_pushed: {
 				feedbackType: FeedbackEntitySubType.Boolean,
@@ -437,14 +407,16 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				},
 				showInvert: true,
 				options: [
-					...CHOICES_DYNAMIC_LOCATION,
+					CHOICES_LOCATION,
 					{
 						type: 'checkbox',
 						label: 'Treat stepped as pressed? (latch compatibility)',
 						id: 'latch_compatability',
 						default: false,
+						disableAutoExpression: true,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 			bank_current_step: {
 				feedbackType: FeedbackEntitySubType.Boolean,
@@ -457,7 +429,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				},
 				showInvert: true,
 				options: [
-					...CHOICES_DYNAMIC_LOCATION,
+					CHOICES_LOCATION,
 					{
 						type: 'number',
 						label: 'Step',
@@ -468,6 +440,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 						max: Number.MAX_SAFE_INTEGER,
 					},
 				],
+				internalUsesAutoParser: true,
 			},
 		}
 	}
@@ -499,12 +472,21 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			}
 		}
 
+		if (feedback.definitionId === 'bank_style' || feedback.definitionId === 'bank_pushed') {
+			changed = convertOldLocationToExpressionOrValue(feedback.options) || changed
+		} else if (feedback.definitionId === 'bank_current_step') {
+			changed = convertOldLocationToExpressionOrValue(feedback.options) || changed
+			changed = convertSimplePropertyToExpresionValue(feedback.options, 'step') || changed
+		}
+
 		if (changed) return feedback
 	}
 
-	executeFeedback(feedback: FeedbackForInternalExecution): ExecuteFeedbackResultWithReferences | void {
+	executeFeedback(
+		feedback: FeedbackForInternalExecution
+	): ExecuteFeedbackResultWithReferences | CompanionFeedbackButtonStyleResult | boolean | void {
 		if (feedback.definitionId === 'bank_style') {
-			const { theLocation, referencedVariables } = this.#fetchLocationAndControlId(feedback.options, feedback, true)
+			const { theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
 
 			if (
 				!feedback.location ||
@@ -518,10 +500,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			) {
 				this.#buttonDrawnSubscriptions.delete(feedback.id)
 				// Don't recurse on self
-				return {
-					referencedVariables,
-					value: {},
-				}
+				return {}
 			}
 
 			this.#buttonDrawnSubscriptions.set(feedback.id, formatLocation(theLocation))
@@ -530,10 +509,7 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 			if (render?.style && typeof render.style === 'object') {
 				if (!feedback.options.properties) {
 					// TODO populate these properties instead
-					return {
-						value: cloneDeep(render.style as any),
-						referencedVariables,
-					}
+					return cloneDeep(render.style as any)
 				} else {
 					const newStyle: Record<string, any> = {}
 
@@ -543,23 +519,13 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 					}
 
 					// Return cloned resolved style
-					return {
-						value: cloneDeep(newStyle),
-						referencedVariables,
-					}
+					return cloneDeep(newStyle)
 				}
 			} else {
-				return {
-					referencedVariables,
-					value: {},
-				}
+				return {}
 			}
 		} else if (feedback.definitionId === 'bank_pushed') {
-			const { theControlId, theLocation, referencedVariables } = this.#fetchLocationAndControlId(
-				feedback.options,
-				feedback,
-				true
-			)
+			const { theControlId, theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
 
 			if (theLocation) {
 				this.#buttonDrawnSubscriptions.set(feedback.id, formatLocation(theLocation))
@@ -576,22 +542,12 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 					isPushed = control.actionSets.getActiveStepIndex() !== 0
 				}
 
-				return {
-					referencedVariables,
-					value: isPushed,
-				}
+				return isPushed
 			} else {
-				return {
-					referencedVariables,
-					value: false,
-				}
+				return false
 			}
 		} else if (feedback.definitionId == 'bank_current_step') {
-			const { theControlId, theLocation, referencedVariables } = this.#fetchLocationAndControlId(
-				feedback.options,
-				feedback,
-				true
-			)
+			const { theControlId, theLocation } = this.#fetchLocationAndControlIdNew(feedback.options, feedback)
 
 			if (theLocation) {
 				this.#buttonDrawnSubscriptions.set(feedback.id, formatLocation(theLocation))
@@ -603,15 +559,9 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 
 			const control = theControlId && this.#controlsController.getControl(theControlId)
 			if (control && control.supportsActionSets) {
-				return {
-					referencedVariables,
-					value: control.actionSets.getActiveStepIndex() + 1 === Number(theStep),
-				}
+				return control.actionSets.getActiveStepIndex() + 1 === Number(theStep)
 			} else {
-				return {
-					referencedVariables,
-					value: false,
-				}
+				return false
 			}
 		}
 	}

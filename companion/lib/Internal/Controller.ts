@@ -100,7 +100,7 @@ export class InternalController {
 			new InternalActionRecorder(controlsController.actionRecorder, pageStore),
 			new InternalInstance(instanceController),
 			new InternalTime(),
-			new InternalControls(internalUtils, graphicsController, controlsController, pageStore),
+			new InternalControls(graphicsController, controlsController, pageStore),
 			new InternalCustomVariables(variablesController),
 			new InternalPage(pageStore),
 			new InternalSurface(surfaceController, controlsController, pageStore),

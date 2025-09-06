@@ -1,4 +1,4 @@
-import { type CompanionVariableValues, type CompanionVariableValue } from '@companion-module/base'
+import { type CompanionVariableValues, type CompanionVariableValue, InputValue } from '@companion-module/base'
 import type { ReadonlyDeep } from 'type-fest'
 import {
 	VariableValueData,
@@ -107,40 +107,23 @@ export class VariablesAndExpressionParser {
 			// If the entity uses the auto parser, we can just parse all
 
 			for (const field of entityDefinition.options) {
-				// Get the value as an ExpressionOrValue
-				const rawValue: ExpressionOrValue<any> = isExpressionOrValue(options[field.id])
-					? (options[field.id] as any)
-					: { value: options[field.id], isExpression: field.type === 'textinput' && !!field.isExpression }
-
-				if (rawValue.isExpression) {
-					// Parse the expression
-					const parseResult = this.executeExpression(rawValue.value || '', undefined)
-					if (!parseResult.ok) throw new Error(parseResult.error)
-					parsedOptions[field.id] = parseResult.value
-
-					// Track the variables referenced in this field
-					if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
-						for (const variable of parseResult.variableIds) {
-							referencedVariableIds.add(variable)
-						}
+				let fieldType: 'expression' | 'variables' | 'generic' = 'generic'
+				if (field.type === 'textinput') {
+					if (field.isExpression) {
+						fieldType = 'expression'
+					} else if (field.useVariables) {
+						fieldType = 'variables'
 					}
+				}
 
-					// TODO - check value is valid according to the rules
-				} else if (field.type === 'textinput' && field.useVariables) {
-					// Field needs parsing
-					// Note - we don't need to care about the granularity given in `useVariables`,
-					const parseResult = this.parseVariables(String(rawValue.value))
-					parsedOptions[field.id] = parseResult.text
+				const parsedValue = this.parseEntityOption(options[field.id], fieldType)
+				parsedOptions[field.id] = parsedValue.value
 
-					// Track the variables referenced in this field
-					if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
-						for (const variable of parseResult.variableIds) {
-							referencedVariableIds.add(variable)
-						}
+				// Track the variables referenced in this field
+				if (!entityDefinition.optionsToIgnoreForSubscribe.includes(field.id)) {
+					for (const variable of parsedValue.referencedVariableIds) {
+						referencedVariableIds.add(variable)
 					}
-				} else {
-					// Just use the value as-is
-					parsedOptions[field.id] = rawValue.value
 				}
 			}
 		} else {
@@ -168,5 +151,46 @@ export class VariablesAndExpressionParser {
 		}
 
 		return { parsedOptions, referencedVariableIds }
+	}
+
+	parseEntityOption(
+		optionsValue: InputValue | undefined,
+		fieldType: 'expression' | 'variables' | 'generic'
+	): {
+		value: InputValue
+		referencedVariableIds: ReadonlySet<string>
+	} {
+		// Get the value as an ExpressionOrValue
+		const rawValue: ExpressionOrValue<any> = isExpressionOrValue(optionsValue)
+			? (optionsValue as any)
+			: { value: optionsValue, isExpression: fieldType === 'expression' }
+
+		if (rawValue.isExpression) {
+			// Parse the expression
+			const parseResult = this.executeExpression(rawValue.value || '', undefined)
+			if (!parseResult.ok) throw new Error(parseResult.error)
+
+			return {
+				value: parseResult.value as any,
+				referencedVariableIds: parseResult.variableIds,
+			}
+
+			// TODO - check value is valid according to the rules
+		} else if (fieldType === 'variables') {
+			// Field needs parsing
+			// Note - we don't need to care about the granularity given in `useVariables`,
+			const parseResult = this.parseVariables(String(rawValue.value))
+
+			return {
+				value: parseResult.text,
+				referencedVariableIds: parseResult.variableIds,
+			}
+		} else {
+			// Just use the value as-is
+			return {
+				value: rawValue.value,
+				referencedVariableIds: new Set(),
+			}
+		}
 	}
 }

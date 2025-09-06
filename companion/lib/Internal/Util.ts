@@ -73,6 +73,7 @@ export function ParseLocationString(
 
 	str = str.trim().toLowerCase()
 
+	// Special case handling for local special modes
 	if (str.startsWith('this')) return pressLocation ?? null
 
 	const sanitisePageNumber = (pageNumber: number): number | null => {
