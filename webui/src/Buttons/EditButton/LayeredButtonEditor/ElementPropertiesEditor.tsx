@@ -56,7 +56,7 @@ const ElementPropertiesEditorSchemaVersion = observer(function ElementProperties
 
 		if (compositeDefinition) {
 			// Combine common element fields with the custom schema from the composite definition
-			schema = [...schema, ...compositeDefinition.schema]
+			schema = [...schema, ...compositeDefinition.options]
 		}
 	}
 

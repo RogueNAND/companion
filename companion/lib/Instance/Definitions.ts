@@ -51,7 +51,7 @@ import { Complete } from '@companion-module/base/dist/util.js'
 export interface CompositeElementDefinition {
 	name: string
 	description: string | undefined
-	schema: SomeCompanionInputField[]
+	options: SomeCompanionInputField[]
 	elements: SomeButtonGraphicsElement[]
 }
 
@@ -130,7 +130,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 			'sample-element': {
 				name: 'Sample Composite Element',
 				description: 'Test',
-				schema: [
+				options: [
 					{
 						type: 'textinput',
 						id: 'text',
@@ -175,7 +175,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 				result[connectionId][elementId] = {
 					name: definition.name,
 					description: definition.description,
-					schema: definition.schema,
+					options: definition.options,
 				} satisfies Complete<UICompositeElementDefinition>
 			}
 		}

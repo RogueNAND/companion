@@ -296,7 +296,7 @@ export class ControlButtonLayered
 				}
 
 				// Add custom properties from schema with their default values
-				for (const field of compositeDefinition.schema) {
+				for (const field of compositeDefinition.options) {
 					newElement[field.id] = {
 						value: 'default' in field ? field.default : undefined,
 						isExpression: false,

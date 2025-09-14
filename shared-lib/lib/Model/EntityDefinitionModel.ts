@@ -48,7 +48,7 @@ export interface EntityDefinitionUpdateUpdateConnection extends ObjectsDiff<Clie
 export interface UICompositeElementDefinition {
 	name: string
 	description?: string
-	schema: SomeCompanionInputField[]
+	options: SomeCompanionInputField[]
 }
 
 export interface CompositeElementDefinitionInit {
