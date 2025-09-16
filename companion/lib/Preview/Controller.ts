@@ -7,6 +7,7 @@ import { PreviewGraphics } from './Graphics.js'
 import { router } from '../UI/TRPC.js'
 import type EventEmitter from 'node:events'
 import type { ControlCommonEvents } from '../Controls/ControlDependencies.js'
+import type { InstanceDefinitions } from '../Instance/Definitions.js'
 
 export class PreviewController {
 	readonly #graphics: PreviewGraphics
@@ -14,6 +15,7 @@ export class PreviewController {
 	readonly #elementStream: PreviewElementStream
 
 	constructor(
+		instanceDefinitions: InstanceDefinitions,
 		graphicsController: GraphicsController,
 		pageStore: IPageStore,
 		controlsController: ControlsController,
@@ -21,7 +23,7 @@ export class PreviewController {
 	) {
 		this.#graphics = new PreviewGraphics(graphicsController, pageStore, controlsController, controlEvents)
 		this.#expressionStream = new PreviewExpressionStream(controlsController)
-		this.#elementStream = new PreviewElementStream(controlsController, controlEvents)
+		this.#elementStream = new PreviewElementStream(instanceDefinitions, controlsController, controlEvents)
 	}
 
 	createTrpcRouter() {

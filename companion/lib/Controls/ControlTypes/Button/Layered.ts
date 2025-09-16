@@ -228,16 +228,9 @@ export class ControlButtonLayered
 
 		// Compute the new drawing
 		const { elements, usedVariables } = await ConvertSomeButtonGraphicsElementForDrawing(
+			this.deps.instance.definitions,
 			this.#drawElements,
-			async (str: string, requiredType?: string) => parser.executeExpression(str, requiredType),
-			async (str: string) => {
-				const res = parser.parseVariables(str)
-				return {
-					ok: true,
-					value: res.text,
-					variableIds: res.variableIds,
-				}
-			},
+			parser,
 			true
 		)
 		this.#last_draw_variables = usedVariables.size > 0 ? usedVariables : null
@@ -297,7 +290,7 @@ export class ControlButtonLayered
 
 				// Add custom properties from schema with their default values
 				for (const field of compositeDefinition.options) {
-					newElement[field.id] = {
+					newElement[`opt:${field.id}`] = {
 						value: 'default' in field ? field.default : undefined,
 						isExpression: false,
 					}

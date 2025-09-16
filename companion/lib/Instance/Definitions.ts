@@ -125,6 +125,8 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 	 * Initialize the fixed list of composite element definitions
 	 */
 	#initializeCompositeElements(): void {
+		// TODO - make drawing reactive to these elements changing!
+
 		// For now, one fixed composite element
 		this.#compositeElementDefinitions['internal'] = {
 			'sample-element': {
@@ -154,7 +156,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 						fontsize: { value: 'auto', isExpression: false },
 						color: { value: 0xffffff, isExpression: false },
 						halign: { value: 'center', isExpression: false },
-						valign: { value: 'center', isExpression: false },
+						valign: { value: 'bottom', isExpression: false },
 						outlineColor: { value: 0xff000000, isExpression: false },
 					},
 				],
@@ -175,7 +177,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 				result[connectionId][elementId] = {
 					name: definition.name,
 					description: definition.description,
-					options: definition.options,
+					options: definition.options.map((opt) => ({ ...opt, id: `opt:${opt.id}` })),
 				} satisfies Complete<UICompositeElementDefinition>
 			}
 		}

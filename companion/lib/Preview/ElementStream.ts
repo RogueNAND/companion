@@ -8,8 +8,8 @@ import type {
 	SomeButtonGraphicsDrawElement,
 } from '@companion-app/shared/Model/StyleLayersModel.js'
 import { ConvertSomeButtonGraphicsElementForDrawing } from '../Graphics/ConvertGraphicsElements.js'
-import type { ExecuteExpressionResult } from '@companion-app/shared/Expression/ExpressionResult.js'
 import type { ControlCommonEvents } from '../Controls/ControlDependencies.js'
+import type { InstanceDefinitions } from '../Instance/Definitions.js'
 
 export interface ElementStreamResult {
 	ok: true
@@ -24,12 +24,18 @@ export interface ElementStreamResult {
 export class PreviewElementStream {
 	readonly #logger = LogController.createLogger('Preview/ElementStream')
 
+	readonly #instanceDefinitions: InstanceDefinitions
 	readonly #controlsController: ControlsController
 	readonly #controlEvents: EventEmitter<ControlCommonEvents>
 
 	readonly #sessions = new Map<string, ElementStreamSession>()
 
-	constructor(controlsController: ControlsController, controlEvents: EventEmitter<ControlCommonEvents>) {
+	constructor(
+		instanceDefinitions: InstanceDefinitions,
+		controlsController: ControlsController,
+		controlEvents: EventEmitter<ControlCommonEvents>
+	) {
+		this.#instanceDefinitions = instanceDefinitions
 		this.#controlsController = controlsController
 		this.#controlEvents = controlEvents
 
@@ -202,33 +208,6 @@ export class PreviewElementStream {
 
 		const parser = this.#controlsController.createVariablesAndExpressionParser(controlId, null)
 
-		// Create the expression execution functions that track variable usage
-		const parseExpression = async (str: string, requiredType?: string): Promise<ExecuteExpressionResult> => {
-			const result = parser.executeExpression(str, requiredType)
-
-			// Track all variables used in this expression
-			for (const variableId of result.variableIds) {
-				expressionTracker.add(variableId)
-			}
-
-			return result
-		}
-
-		const parseVariablesInString = async (str: string): Promise<ExecuteExpressionResult> => {
-			const result = parser.parseVariables(str)
-
-			// Track all variables used
-			for (const variableId of result.variableIds) {
-				expressionTracker.add(variableId)
-			}
-
-			return {
-				ok: true,
-				value: result.text,
-				variableIds: result.variableIds,
-			}
-		}
-
 		try {
 			// For group elements, clear children since they should be watched independently
 			let elementDefToProcess = elementDef
@@ -238,12 +217,17 @@ export class PreviewElementStream {
 
 			// Convert the single element to its draw representation
 			// We wrap it in an array since ConvertSomeButtonGraphicsElementForDrawing expects an array
-			const { elements } = await ConvertSomeButtonGraphicsElementForDrawing(
+			const { elements, usedVariables } = await ConvertSomeButtonGraphicsElementForDrawing(
+				this.#instanceDefinitions,
 				[elementDefToProcess],
-				parseExpression,
-				parseVariablesInString,
+				parser,
 				false // onlyEnabled
 			)
+
+			// Track all variables used
+			for (const variableId of usedVariables) {
+				expressionTracker.add(variableId)
+			}
 
 			if (elements.length === 0) {
 				throw new Error(

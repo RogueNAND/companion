@@ -11,40 +11,50 @@ import {
 	type ExpressionOrValue,
 	type SomeButtonGraphicsDrawElement,
 	type SomeButtonGraphicsElement,
-	MakeExpressionable,
-	ButtonGraphicsBoxDrawElement,
-	ButtonGraphicsBoxElement,
-	ButtonGraphicsGroupElement,
-	ButtonGraphicsGroupDrawElement,
-	ButtonGraphicsBorderProperties,
-	ButtonGraphicsLineElement,
-	ButtonGraphicsLineDrawElement,
-	ButtonGraphicsCompositeElement,
+	type MakeExpressionable,
+	type ButtonGraphicsBoxDrawElement,
+	type ButtonGraphicsBoxElement,
+	type ButtonGraphicsGroupElement,
+	type ButtonGraphicsGroupDrawElement,
+	type ButtonGraphicsBorderProperties,
+	type ButtonGraphicsLineElement,
+	type ButtonGraphicsLineDrawElement,
+	type ButtonGraphicsCompositeElement,
 } from '@companion-app/shared/Model/StyleLayersModel.js'
 import { assertNever } from '@companion-app/shared/Util.js'
 import { HorizontalAlignment, VerticalAlignment } from '@companion-app/shared/Graphics/Util.js'
-
-type ExecuteExpressionFn = (str: string, requiredType?: string) => Promise<ExecuteExpressionResult>
-type ParseVariablesFn = (str: string) => Promise<ExecuteExpressionResult>
+import type { CompositeElementDefinition, InstanceDefinitions } from '../Instance/Definitions.js'
+import type { CompanionVariableValues } from '@companion-module/base'
+import type { VariablesAndExpressionParser } from '../Variables/VariablesAndExpressionParser.js'
 
 class ExpressionHelper {
-	readonly #executeExpression: ExecuteExpressionFn
-	readonly #parseVariables: ParseVariablesFn
+	readonly #compositeElementStore: InstanceDefinitions
+	readonly #parser: VariablesAndExpressionParser
 
 	readonly usedVariables = new Set<string>()
 	readonly onlyEnabled: boolean
 
-	constructor(executeExpression: ExecuteExpressionFn, parseVariables: ParseVariablesFn, onlyEnabled: boolean) {
-		this.#executeExpression = executeExpression
-		this.#parseVariables = parseVariables
+	constructor(compositeElementStore: InstanceDefinitions, parser: VariablesAndExpressionParser, onlyEnabled: boolean) {
+		this.#compositeElementStore = compositeElementStore
+		this.#parser = parser
 		this.onlyEnabled = onlyEnabled
+	}
+
+	resolveCompositeElement(connectionId: string, elementId: string): CompositeElementDefinition | null {
+		const definition = this.#compositeElementStore.getCompositeElementDefinition(connectionId, elementId)
+		return definition ?? null
+	}
+
+	createChildHelper(overrideVariables: CompanionVariableValues): ExpressionHelper {
+		const childParser = this.#parser.createChildParser(overrideVariables)
+		return new ExpressionHelper(this.#compositeElementStore, childParser, this.onlyEnabled)
 	}
 
 	async #executeExpressionAndTrackVariables(
 		str: string,
 		requiredType: string | undefined
 	): Promise<ExecuteExpressionResult> {
-		const result = await this.#executeExpression(str, requiredType)
+		const result = this.#parser.executeExpression(str, requiredType)
 
 		// Track the variables used in the expression, even when it failed
 		for (const variable of result.variableIds) {
@@ -55,18 +65,19 @@ class ExpressionHelper {
 	}
 
 	async parseVariablesInString(str: string, defaultValue: string): Promise<string> {
-		const result = await this.#parseVariables(str)
+		try {
+			const result = this.#parser.parseVariables(str)
 
-		// Track the variables used in the expression, even when it failed
-		for (const variable of result.variableIds) {
-			this.usedVariables.add(variable)
-		}
+			// Track the variables used in the expression, even when it failed
+			for (const variable of result.variableIds) {
+				this.usedVariables.add(variable)
+			}
 
-		if (!result.ok) {
+			return String(result.text)
+		} catch (_e) {
+			// Ignore errors
 			return defaultValue
 		}
-
-		return String(result.value)
 	}
 
 	async getUnknown(
@@ -180,15 +191,15 @@ class ExpressionHelper {
 
 // TODO - this could probably drop all the async, now that this is just run on the backend
 export async function ConvertSomeButtonGraphicsElementForDrawing(
+	compositeElementStore: InstanceDefinitions,
 	elements: SomeButtonGraphicsElement[],
-	executeExpression: ExecuteExpressionFn,
-	parseVariables: ParseVariablesFn,
+	parser: VariablesAndExpressionParser,
 	onlyEnabled: boolean
 ): Promise<{
 	elements: SomeButtonGraphicsDrawElement[]
 	usedVariables: Set<string>
 }> {
-	const helper = new ExpressionHelper(executeExpression, parseVariables, onlyEnabled)
+	const helper = new ExpressionHelper(compositeElementStore, parser, onlyEnabled)
 
 	const newElements = await ConvertSomeButtonGraphicsElementForDrawingWithHelper(helper, elements)
 
@@ -287,10 +298,27 @@ async function convertCompositeElementForDrawing(
 	const [opacity, bounds] = await Promise.all([
 		helper.getNumber(element.opacity, 1, 0.01),
 		convertDrawBounds(helper, element),
-		// ConvertSomeButtonGraphicsElementForDrawingWithHelper(helper, element.children),
 	])
 
-	// TODO - load in the contents here
+	let children: SomeButtonGraphicsDrawElement[] = []
+
+	const childElement = helper.resolveCompositeElement(element.connectionId, element.elementId)
+	if (childElement) {
+		// Inject new values
+		const propOverrides: CompanionVariableValues = {}
+		await Promise.all(
+			childElement.options.map(async (option) => {
+				const rawValue = element[`opt:${option.id}`]
+				if (!rawValue) return
+
+				// TODO - better type handling?
+				propOverrides[`$(options:${option.id})`] = await helper.getUnknown(rawValue, undefined)
+			})
+		)
+
+		const childHelper = helper.createChildHelper(propOverrides)
+		children = await ConvertSomeButtonGraphicsElementForDrawingWithHelper(childHelper, childElement.elements)
+	}
 
 	return {
 		id: element.id,
@@ -299,7 +327,7 @@ async function convertCompositeElementForDrawing(
 		enabled,
 		opacity,
 		...bounds,
-		children: [],
+		children,
 	}
 }
 

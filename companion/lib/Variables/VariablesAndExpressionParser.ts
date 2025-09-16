@@ -50,6 +50,20 @@ export class VariablesAndExpressionParser {
 		if (localValues) this.#bindLocalVariables(localValues)
 	}
 
+	createChildParser(overrideVariableValues: CompanionVariableValues): VariablesAndExpressionParser {
+		const childParser = new VariablesAndExpressionParser(this.#rawVariableValues, this.#thisValues, null, {
+			...this.#overrideVariableValues,
+			...overrideVariableValues,
+		})
+
+		// Manual clone the localValues
+		for (const [key, value] of this.#localValues) {
+			if (key.startsWith('$(local:')) childParser.#localValues.set(key, value)
+		}
+
+		return childParser
+	}
+
 	#bindLocalVariables(entities: ControlEntityInstance[]) {
 		for (const entity of entities) {
 			const variableName = entity.localVariableName

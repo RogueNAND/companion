@@ -100,8 +100,9 @@ export interface ButtonGraphicsCompositeElement
 	connectionId: string
 	elementId: string
 
-	[customProperty: string]: any
+	[customKey: CompositeElementOptionKey]: ExpressionOrValue<any> | undefined
 }
+export type CompositeElementOptionKey = `opt:${string}`
 
 export type HorizontalAlignment = 'left' | 'center' | 'right'
 export type VerticalAlignment = 'top' | 'center' | 'bottom'
