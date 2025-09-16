@@ -142,6 +142,22 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 				],
 				elements: [
 					{
+						type: 'box',
+						id: 'sample-box',
+						name: 'Sample Box',
+						usage: ButtonGraphicsElementUsage.Automatic,
+						enabled: { value: true, isExpression: false },
+						opacity: { value: 50, isExpression: false },
+						x: { value: 0, isExpression: false },
+						y: { value: 0, isExpression: false },
+						width: { value: 100, isExpression: false },
+						height: { value: 100, isExpression: false },
+						color: { value: 0x0000ff, isExpression: false },
+						borderColor: { value: 0xff000000, isExpression: false },
+						borderPosition: { value: 'inside', isExpression: false },
+						borderWidth: { value: 2, isExpression: false },
+					},
+					{
 						type: 'text',
 						id: 'sample-text',
 						name: 'Sample Text',
