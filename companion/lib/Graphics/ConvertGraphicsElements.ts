@@ -305,8 +305,70 @@ function convertCompositeElementForDrawing(
 			const rawValue = element[`opt:${option.id}`]
 			if (!rawValue) continue
 
+			const key = `$(options:${option.id})`
+
+			switch (option.type) {
+				case 'checkbox':
+					propOverrides[key] = helper.getBoolean(rawValue, option.default)
+					break
+
+				case 'textinput':
+					if (option.isExpression || rawValue.isExpression) {
+						propOverrides[key] = helper.getUnknown(rawValue, option.default ?? '')
+					} else if (option.useVariables) {
+						propOverrides[key] = helper.parseVariablesInString(rawValue.value, option.default ?? '')
+					} else {
+						propOverrides[key] = String(rawValue.value)
+					}
+					break
+
+				case 'number':
+					propOverrides[key] = helper.getNumber(rawValue, option.default ?? 0, 1)
+					break
+
+				case 'dropdown':
+					propOverrides[key] = helper.getEnum(
+						rawValue,
+						option.choices.map((c) => c.id),
+						option.default
+					)
+					break
+
+				case 'colorpicker':
+					if (option.returnType === 'string') {
+						propOverrides[key] = helper.getString(rawValue, option.default)
+					} else {
+						propOverrides[key] = helper.getNumber(rawValue, Number(option.default) || 0, 1)
+					}
+					break
+
+				case 'multidropdown':
+				case 'internal:connection_collection':
+				case 'internal:connection_id':
+				case 'internal:custom_variable':
+				case 'internal:date':
+				case 'internal:time':
+				case 'internal:horizontal-alignment':
+				case 'internal:page':
+				case 'internal:png-image':
+				case 'internal:surface_serial':
+				case 'internal:vertical-alignment':
+				case 'internal:trigger':
+				case 'internal:trigger_collection':
+				case 'internal:variable':
+				case 'secret-text':
+				case 'static-text':
+				case 'custom-variable':
+				case 'bonjour-device':
+					// Not supported
+					break
+				default:
+					assertNever(option)
+					propOverrides[key] = helper.getUnknown(rawValue, 'default' in option ? (option as any).default : undefined)
+			}
+
 			// TODO - better type handling?
-			propOverrides[`$(options:${option.id})`] = helper.getUnknown(rawValue, undefined)
+			propOverrides[key] = helper.getUnknown(rawValue, undefined)
 		}
 
 		const childHelper = helper.createChildHelper(propOverrides)
