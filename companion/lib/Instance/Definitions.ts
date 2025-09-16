@@ -137,7 +137,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 						type: 'textinput',
 						id: 'text',
 						label: 'ABC',
-						default: 'Hello World',
+						default: 'Hello',
 					},
 				],
 				elements: [
@@ -152,7 +152,7 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 						y: { value: 0, isExpression: false },
 						width: { value: 100, isExpression: false },
 						height: { value: 100, isExpression: false },
-						text: { value: '$(options:text)', isExpression: false },
+						text: { value: '$(options:text)\nWorld', isExpression: false },
 						fontsize: { value: 'auto', isExpression: false },
 						color: { value: 0xffffff, isExpression: false },
 						halign: { value: 'center', isExpression: false },

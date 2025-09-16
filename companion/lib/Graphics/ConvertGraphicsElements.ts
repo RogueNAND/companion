@@ -31,12 +31,18 @@ class ExpressionHelper {
 	readonly #compositeElementStore: InstanceDefinitions
 	readonly #parser: VariablesAndExpressionParser
 
-	readonly usedVariables = new Set<string>()
+	readonly #usedVariables: Set<string>
 	readonly onlyEnabled: boolean
 
-	constructor(compositeElementStore: InstanceDefinitions, parser: VariablesAndExpressionParser, onlyEnabled: boolean) {
+	constructor(
+		compositeElementStore: InstanceDefinitions,
+		parser: VariablesAndExpressionParser,
+		onlyEnabled: boolean,
+		usedVariables: Set<string>
+	) {
 		this.#compositeElementStore = compositeElementStore
 		this.#parser = parser
+		this.#usedVariables = usedVariables
 		this.onlyEnabled = onlyEnabled
 	}
 
@@ -47,7 +53,7 @@ class ExpressionHelper {
 
 	createChildHelper(overrideVariables: CompanionVariableValues): ExpressionHelper {
 		const childParser = this.#parser.createChildParser(overrideVariables)
-		return new ExpressionHelper(this.#compositeElementStore, childParser, this.onlyEnabled)
+		return new ExpressionHelper(this.#compositeElementStore, childParser, this.onlyEnabled, this.#usedVariables)
 	}
 
 	async #executeExpressionAndTrackVariables(
@@ -58,7 +64,7 @@ class ExpressionHelper {
 
 		// Track the variables used in the expression, even when it failed
 		for (const variable of result.variableIds) {
-			this.usedVariables.add(variable)
+			this.#usedVariables.add(variable)
 		}
 
 		return result
@@ -70,7 +76,7 @@ class ExpressionHelper {
 
 			// Track the variables used in the expression, even when it failed
 			for (const variable of result.variableIds) {
-				this.usedVariables.add(variable)
+				this.#usedVariables.add(variable)
 			}
 
 			return String(result.text)
@@ -199,13 +205,14 @@ export async function ConvertSomeButtonGraphicsElementForDrawing(
 	elements: SomeButtonGraphicsDrawElement[]
 	usedVariables: Set<string>
 }> {
-	const helper = new ExpressionHelper(compositeElementStore, parser, onlyEnabled)
+	const usedVariables = new Set<string>()
+	const helper = new ExpressionHelper(compositeElementStore, parser, onlyEnabled, usedVariables)
 
 	const newElements = await ConvertSomeButtonGraphicsElementForDrawingWithHelper(helper, elements)
 
 	return {
 		elements: newElements,
-		usedVariables: helper.usedVariables,
+		usedVariables: usedVariables,
 	}
 }
 
