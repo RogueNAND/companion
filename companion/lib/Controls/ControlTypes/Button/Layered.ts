@@ -227,7 +227,7 @@ export class ControlButtonLayered
 		)
 
 		// Compute the new drawing
-		const { elements, usedVariables } = await ConvertSomeButtonGraphicsElementForDrawing(
+		const { elements, usedVariables } = ConvertSomeButtonGraphicsElementForDrawing(
 			this.deps.instance.definitions,
 			this.#drawElements,
 			parser,

@@ -128,10 +128,10 @@ export class PreviewElementStream {
 		}
 
 		// Start evaluation without waiting for it
-		void this.#performElementReEvaluation(session)
+		this.#performElementReEvaluation(session)
 	}
 
-	#performElementReEvaluation = async (session: ElementStreamSession): Promise<void> => {
+	#performElementReEvaluation = (session: ElementStreamSession): void => {
 		// Mark as evaluating and clear pending flag
 		session.isEvaluating = true
 		session.hasPendingEvaluation = false
@@ -142,7 +142,7 @@ export class PreviewElementStream {
 
 			// Re-evaluate the element with fresh expression tracking
 			const expressionTracker = new Set<string>()
-			const newValue = await this.#evaluateElement(elementDef, session.controlId, expressionTracker)
+			const newValue = this.#evaluateElement(elementDef, session.controlId, expressionTracker)
 
 			// Update session with new value
 			session.latestResult = newValue
@@ -159,7 +159,7 @@ export class PreviewElementStream {
 			if (session.hasPendingEvaluation) {
 				// Use setImmediate to avoid deep recursion
 				setImmediate(() => {
-					void this.#performElementReEvaluation(session)
+					this.#performElementReEvaluation(session)
 				})
 			}
 		}
@@ -197,11 +197,11 @@ export class PreviewElementStream {
 		}
 	}
 
-	async #evaluateElement(
+	#evaluateElement(
 		elementDef: SomeButtonGraphicsElement | null | undefined,
 		controlId: string | null,
 		expressionTracker: Set<string>
-	): Promise<ElementStreamResult> {
+	): ElementStreamResult {
 		if (!elementDef) {
 			return { ok: true, element: null }
 		}
@@ -217,7 +217,7 @@ export class PreviewElementStream {
 
 			// Convert the single element to its draw representation
 			// We wrap it in an array since ConvertSomeButtonGraphicsElementForDrawing expects an array
-			const { elements, usedVariables } = await ConvertSomeButtonGraphicsElementForDrawing(
+			const { elements, usedVariables } = ConvertSomeButtonGraphicsElementForDrawing(
 				this.#instanceDefinitions,
 				[elementDefToProcess],
 				parser,
