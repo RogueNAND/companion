@@ -1,0 +1,52 @@
+name: Sync upstream into patched branch
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"   # once a week
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/bitfocus/companion.git
+
+      - name: Fetch upstream tags
+        run: git fetch upstream --tags
+
+      - name: Rebase patched branch onto latest upstream tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Find latest v4.* tag from upstream
+          LATEST_TAG=$(git tag -l "v4.*" --sort=-v:refname | head -n 1)
+          echo "Latest upstream tag: $LATEST_TAG"
+
+          # Check out or create patched branch
+          if git show-ref --verify --quiet refs/heads/patched; then
+            git checkout patched
+          else
+            git checkout -b patched upstream/$LATEST_TAG
+          fi
+
+          # Rebase patched branch on latest upstream tag
+          git fetch upstream $LATEST_TAG
+          git rebase upstream/$LATEST_TAG || { echo "❌ Rebase failed, needs manual fix"; exit 1; }
+
+          # Push rebased branch back to origin
+          git push origin patched --force
+
+          # Create or move fork-specific tag (suffix "-patched" to avoid clobbering upstream tags)
+          PATCHED_TAG="${LATEST_TAG}-patched"
+          git tag -f "$PATCHED_TAG" patched
+
+          # Push the patched tag
+          git push origin "$PATCHED_TAG" --force

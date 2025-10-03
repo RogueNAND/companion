@@ -150,6 +150,14 @@ export class ServiceApi extends EventEmitter<ServiceApiEvents> {
 		return this.#variablesController.definitions.getVariableDefinitions('custom')
 	}
 
+	/**
+	 * Get all variable names and values
+	 * @returns All variables grouped by connection
+	 */
+	getAllVariableValues() {
+			return this.#variablesController.values.getAllVariableValues()
+	}
+
 	async triggerRescanForSurfaces(): Promise<void> {
 		await this.#surfaceController.triggerRefreshDevices()
 	}

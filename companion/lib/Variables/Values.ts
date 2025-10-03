@@ -42,6 +42,10 @@ export class VariablesValues extends EventEmitter<VariablesValuesEvents> {
 		return this.getVariableValue('custom', name)
 	}
 
+	getAllVariableValues() {
+		return this.#variableValues
+	}
+
 	createVariablesAndExpressionParser(
 		controlLocation: ControlLocation | null | undefined,
 		localValues: ControlEntityInstance[] | null,
