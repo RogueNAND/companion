@@ -44,6 +44,7 @@ export interface InternalModuleFragmentEvents {
 	checkFeedbacks: [...feedbackType: string[]]
 	checkFeedbacksById: [...feedbackIds: string[]]
 	regenerateVariables: []
+	regenerateActions: []
 	setVariables: [variables: Record<string, CompanionVariableValue | undefined>]
 }
 

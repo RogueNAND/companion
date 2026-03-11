@@ -108,6 +108,21 @@ export const AddEntitiesModal = observer(
 							doAdd={addAndTrackRecentUsage}
 						/>
 					))}
+					{Array.from(definitions.connections.keys())
+						.filter((id) => id !== 'internal' && !connections.getInfo(id))
+						.map((id) => (
+							<ConnectionCollapse
+								key={id}
+								connectionId={id}
+								items={definitions.connections.get(id)}
+								itemName={`${entityTypeLabel}s`}
+								expanded={!!filter || expanded[id]}
+								filter={filter}
+								feedbackListType={feedbackListType}
+								doToggle={toggleExpanded}
+								doAdd={addAndTrackRecentUsage}
+							/>
+						))}
 				</CModalBody>
 				<CModalFooter>
 					<CButton color="secondary" onClick={doClose}>
