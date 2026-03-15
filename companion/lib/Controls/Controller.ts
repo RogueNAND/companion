@@ -818,6 +818,7 @@ export class ControlsController {
 	verifyConnectionIds(): void {
 		const knownConnectionIds = new Set(this.#registry.instance.getAllConnectionIds())
 		knownConnectionIds.add('internal')
+		knownConnectionIds.add('Python')
 
 		for (const control of this.#controls.values()) {
 			if (!control.supportsEntities) continue
