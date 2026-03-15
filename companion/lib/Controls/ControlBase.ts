@@ -5,9 +5,18 @@ import LogController, { type Logger } from '../Log/Controller.js'
 import type { ControlDependencies } from './ControlDependencies.js'
 import { EventEmitter } from 'node:events'
 import type { UIControlUpdate } from '@companion-app/shared/Model/Controls.js'
+import type { ControlLocation } from '@companion-app/shared/Model/Common.js'
+import { ws } from '../Service/WebsocketBridge.js'
 
 export type ControlUpdateEvents = {
 	update: [change: UIControlUpdate]
+}
+
+interface PythonButtonInfo {
+	controlId: string
+	definitionId: string
+	options: Record<string, unknown>
+	location: ControlLocation
 }
 
 /**
@@ -78,11 +87,19 @@ export abstract class ControlBase<TJson> {
 		// Save to db
 		if (!this.#noPersistence) this.deps.dbTable.set(this.controlId, newJson as any)
 
-		// Now broadcast to any interested clients
+		// Broadcast to UI clients
 		if (this.updateEvents.listenerCount('update') > 0) {
 			const patch = jsonPatch.compare<any>(this.#lastSentConfigJson || {}, newJson || {})
 			if (patch.length > 0) {
 				this.updateEvents.emit('update', { type: 'config', patch })
+			}
+		}
+
+		// Always broadcast to Python (independent of UI listeners)
+		if (this.#lastSentConfigJson) {
+			const pythonButton = this.getPythonButton()
+			if (pythonButton) {
+				ws.broadcast('controlUpdated', pythonButton)
 			}
 		}
 
@@ -153,6 +170,34 @@ export abstract class ControlBase<TJson> {
 	 * @param clone - Whether to return a cloned object
 	 */
 	abstract toJSON(clone: boolean): TJson
+
+	getPythonButton(): PythonButtonInfo | undefined {
+		const json = this.toJSON(false) as any
+		if (!json || !json.steps || typeof json.steps !== 'object') return
+		const steps = json.steps as Record<string, any>
+
+		// steps is an object, not an array
+		for (const [_stepKey, step] of Object.entries(steps)) {
+			if (!step || !step.action_sets || typeof step.action_sets !== 'object') continue
+
+			// action_sets is also a key/value object
+			for (const [_setKey, actions] of Object.entries(step.action_sets)) {
+				if (!Array.isArray(actions)) continue
+
+				for (const action of actions) {
+					if (action?.connectionId === 'Python') {
+						return {
+							controlId: this.controlId,
+							definitionId: action.definitionId,
+							options: action.options ?? {},
+							location: this.deps.pageStore.getLocationOfControlId(this.controlId)!,
+						}
+					}
+				}
+			}
+		}
+		return
+	}
 
 	/**
 	 * Get any volatile properties for the control

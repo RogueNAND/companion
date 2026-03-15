@@ -14,6 +14,7 @@ import z from 'zod'
 import type { GraphicsController } from '../Graphics/Controller.js'
 import type { ControlsController } from '../Controls/Controller.js'
 import type { DataUserConfig } from '../Data/UserConfig.js'
+import { ws } from '../Service/WebsocketBridge.js'
 
 interface PageControllerEvents {
 	controlIdsMoved: [controlIds: string[]]
@@ -62,6 +63,10 @@ export class PageController extends EventEmitter<PageControllerEvents> {
 		this.#controlsController = controlsController
 		this.#userconfigController = userconfigController
 		this.#store = store
+
+		ws.registerCommand('queryPages', async () => {
+			return this.#store.getAll()
+		})
 
 		// Listen to store events to emit controller events
 		this.#store.on('controlLocationChanged', (controlId) => {
@@ -356,6 +361,12 @@ export class PageController extends EventEmitter<PageControllerEvents> {
 
 		const oldControlId = this.#store.getControlIdAt(location)
 		const success = this.#store.setControlIdAt(location, controlId)
+
+		ws.broadcast('controlReplaced', {
+			newControl: controlId ? this.#controlsController.getControl(controlId)?.getPythonButton() : null,
+			oldControlId: oldControlId,
+			location: location,
+		})
 
 		if (success) {
 			this.emit('clientUpdate', {

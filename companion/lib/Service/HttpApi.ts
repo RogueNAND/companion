@@ -1,3 +1,4 @@
+import { initWebSocketBridge } from './WebsocketBridge.js'
 import { ParseAlignment, parseColorToNumber, rgb } from '../Resources/Util.js'
 import { formatLocation } from '@companion-app/shared/ControlId.js'
 import Express from 'express'
@@ -72,6 +73,7 @@ export class ServiceHttpApi {
 		this.#setupLegacyHttpRoutes()
 
 		this.#express.apiRouter = this.#apiRouter
+		initWebSocketBridge()
 		this.#express.legacyApiRouter = this.#legacyApiRouter
 	}
 

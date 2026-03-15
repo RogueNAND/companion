@@ -1,3 +1,4 @@
+import { ws } from '../../../Service/WebsocketBridge.js'
 import { ControlBase } from '../../ControlBase.js'
 import type { ControlWithEntities, ControlWithOptions, ControlWithPushed } from '../../IControlFragments.js'
 import type { ButtonOptionsBase, ButtonStatus } from '@companion-app/shared/Model/ButtonModel.js'
@@ -349,6 +350,18 @@ export abstract class ButtonControlBase<TJson, TOptions extends ButtonOptionsBas
 
 		const location = this.deps.pageStore.getLocationOfControlId(this.controlId)
 
+		if (location) {
+			ws.broadcast('interaction', {
+				surfaceId: surfaceId,
+				controlId: this.controlId,
+				page: location.pageNumber,
+				row: location.row,
+				col: location.column,
+				event: 'rotate',
+				value: rightward,
+			})
+		}
+
 		this.logger.silly(`found ${actions.length} actions`)
 		this.actionRunner
 			.runActions(actions, {
@@ -376,6 +389,15 @@ export abstract class ButtonControlBase<TJson, TOptions extends ButtonOptionsBas
 			const location = this.deps.pageStore.getLocationOfControlId(this.controlId)
 			if (location) {
 				this.deps.events.emit('updateButtonState', location, this.pushed, surfaceId)
+				ws.broadcast('interaction', {
+					surfaceId: surfaceId,
+					controlId: this.controlId,
+					page: location.pageNumber,
+					row: location.row,
+					col: location.column,
+					event: 'press',
+					value: this.pushed,
+				})
 			}
 
 			this.triggerRedraw()

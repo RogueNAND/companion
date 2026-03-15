@@ -1,0 +1,186 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if already on latest tag'
+        type: boolean
+        default: false
+      target_tag:
+        description: 'Specific upstream tag to sync to (leave empty for latest)'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  rebase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      new_tag: ${{ steps.rebase.outputs.new_tag }}
+      did_rebase: ${{ steps.rebase.outputs.did_rebase }}
+      skipped: ${{ steps.rebase.outputs.skipped }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: dev
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set lowercase owner
+        id: owner
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Rebase onto upstream
+        id: rebase
+        run: |
+          # Add upstream remote and fetch tags
+          git remote add upstream https://github.com/bitfocus/companion.git || true
+          git fetch upstream --tags
+
+          # Determine target tag
+          if [[ -n "${{ inputs.target_tag }}" ]]; then
+            NEW_TAG="${{ inputs.target_tag }}"
+          else
+            NEW_TAG=$(git tag -l "v4.*" --sort=-v:refname | head -n 1)
+          fi
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "Target upstream tag: $NEW_TAG"
+
+          OLD_BASE=$(cat .upstream-base)
+          echo "Current base: $OLD_BASE"
+
+          # Skip if already on this tag (unless force_build)
+          if [[ "$OLD_BASE" == "$NEW_TAG" && "${{ inputs.force_build }}" != "true" ]]; then
+            echo "Already on $NEW_TAG, skipping"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "did_rebase=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+          # Tag current state for recovery
+          git tag -f "pre-sync-${NEW_TAG}" HEAD
+          git push origin "pre-sync-${NEW_TAG}" --force || true
+
+          # Auto-squash: collapse all patch commits into one
+          git reset --soft "$OLD_BASE"
+          git commit -m "feat: WebSocket bridge API with Python virtual connection support"
+
+          # Rebase the single commit onto the new tag
+          if [[ "$OLD_BASE" != "$NEW_TAG" ]]; then
+            git rebase --onto "$NEW_TAG" "$OLD_BASE" dev || {
+              # Rebase failed — report and exit
+              CONFLICTS=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "unknown")
+              git rebase --abort
+
+              gh issue create \
+                --title "Rebase failed: ${OLD_BASE} → ${NEW_TAG}" \
+                --body "$(cat <<ISSUE_EOF
+          Automatic rebase onto \`${NEW_TAG}\` failed.
+
+          **Conflicting files:**
+          \`\`\`
+          ${CONFLICTS}
+          \`\`\`
+
+          **Recovery:** The pre-squash state is preserved at tag \`pre-sync-${NEW_TAG}\`.
+
+          \`\`\`bash
+          git fetch origin --tags
+          git checkout -b fix-rebase pre-sync-${NEW_TAG}
+          # resolve conflicts manually, then push to dev
+          \`\`\`
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_EOF
+              )" \
+                --label "rebase-conflict" || true
+
+              echo "did_rebase=false" >> "$GITHUB_OUTPUT"
+              exit 1
+            }
+
+            echo "did_rebase=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "did_rebase=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Update .upstream-base in the patch commit
+          echo "$NEW_TAG" > .upstream-base
+          git add .upstream-base
+          git commit --amend --no-edit
+
+          # Force-push dev
+          git push origin dev --force
+
+  test:
+    needs: rebase
+    if: needs.rebase.outputs.skipped != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          yarn config set httpTimeout 100000
+          yarn install --immutable || {
+            echo "Lockfile mismatch — regenerating"
+            yarn install
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add yarn.lock .yarn/
+            git commit -m "chore: update yarn lockfile after upstream sync"
+            git push origin dev
+          }
+
+      - name: Build TypeScript
+        run: yarn build:ts
+
+      - name: Run tests
+        run: yarn test
+
+      - name: Check formatting
+        run: yarn prettier --check .
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Create issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Tests failed after sync to ${{ needs.rebase.outputs.new_tag }}" \
+            --body "$(cat <<ISSUE_EOF
+          Tests or linting failed after rebasing onto \`${{ needs.rebase.outputs.new_tag }}\`.
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Check the logs for details and fix on the \`dev\` branch.
+          ISSUE_EOF
+          )" \
+            --label "test-failure" || true

@@ -42,6 +42,7 @@ import { EventEmitter } from 'node:events'
 import type { InstanceConfigStore } from './ConfigStore.js'
 import type { ButtonStyleProperties } from '@companion-app/shared/Model/StyleModel.js'
 import { ModuleInstanceType } from '@companion-app/shared/Model/Instance.js'
+import { ws } from '../Service/WebsocketBridge.js'
 
 type InstanceDefinitionsEvents = {
 	readonly updatePresets: [connectionId: string]
@@ -94,6 +95,50 @@ export class InstanceDefinitions extends EventEmitter<InstanceDefinitionsEvents>
 
 	constructor(configStore: InstanceConfigStore) {
 		super()
+		ws.registerCommand('queryActions', async () => {
+			const actionsByConn = this.#actionDefinitions
+			const renamed: Record<string, Record<string, any>> = {}
+
+			for (const [connectionId, actions] of Object.entries(actionsByConn)) {
+				const name = this.#configStore.getConfigOfTypeForId(connectionId, null)?.label
+				if (!name) {
+					renamed[connectionId] = actions
+				} else {
+					renamed[name] = actions
+				}
+			}
+			return renamed
+		})
+		ws.registerCommand('queryFeedbacks', async () => {
+			return this.#feedbackDefinitions
+		})
+
+		// Python sends its button class definitions as action definitions
+		// under the virtual 'Python' connectionId.
+		ws.registerCommand('registerPythonActions', async (msg: any) => {
+			const actions: Record<string, ClientEntityDefinition> = {}
+			const defs = msg.params?.actions ?? {}
+			for (const [id, raw] of Object.entries(defs)) {
+				const def = raw as Record<string, any>
+				actions[id] = {
+					label: def.label ?? id,
+					description: def.description,
+					options: def.options ?? [],
+					hasLearn: false,
+					learnTimeout: undefined,
+					showButtonPreview: false,
+					supportsChildGroups: [],
+					entityType: EntityModelType.Action,
+					showInvert: false,
+					feedbackType: null,
+					feedbackStyle: undefined,
+					hasLifecycleFunctions: false,
+					optionsToIgnoreForSubscribe: [],
+				}
+			}
+			this.setActionDefinitions('Python', actions)
+			return { ok: true }
+		})
 
 		this.setMaxListeners(0)
 		this.#events.setMaxListeners(0)

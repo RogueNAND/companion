@@ -9,6 +9,7 @@
  * this program.
  */
 
+import { ws } from '../Service/WebsocketBridge.js'
 import LogController from '../Log/Controller.js'
 import EventEmitter from 'events'
 import type { VariableValueData, VariablesCache } from './Util.js'
@@ -27,6 +28,13 @@ export interface VariablesValuesEvents {
 
 export class VariablesValues extends EventEmitter<VariablesValuesEvents> {
 	readonly #logger = LogController.createLogger('Variables/Values')
+
+	constructor() {
+		super()
+		ws.registerCommand('queryVariables', async () => {
+			return this.#variableValues
+		})
+	}
 
 	#variableValues: VariableValueData = {}
 

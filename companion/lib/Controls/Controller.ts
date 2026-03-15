@@ -41,6 +41,9 @@ import { ExpressionVariableCollections } from './ExpressionVariableCollections.j
 import { createExpressionVariableTrpcRouter } from './ExpressionVariableTrpcRouter.js'
 import { ExpressionVariableNameMap } from './ExpressionVariableNameMap.js'
 import { ControlButtonPreset } from './ControlTypes/Button/Preset.js'
+import { ws } from '../Service/WebsocketBridge.js'
+import { EntityModelType } from '@companion-app/shared/Model/EntityModel.js'
+import { ControlEntityInstance } from './Entities/EntityInstance.js'
 
 /**
  * The class that manages the controls
@@ -62,7 +65,7 @@ export class ControlsController {
 
 	readonly #registry: Pick<
 		Registry,
-		'db' | 'page' | 'surfaces' | 'internalModule' | 'instance' | 'variables' | 'userconfig'
+		'db' | 'page' | 'surfaces' | 'internalModule' | 'instance' | 'variables' | 'userconfig' | 'controls'
 	>
 	readonly #controlEvents: EventEmitter<ControlCommonEvents>
 
@@ -125,6 +128,88 @@ export class ControlsController {
 
 		this.actionRunner = new ActionRunner(registry)
 		this.actionRecorder = new ActionRecorder(registry)
+
+		ws.registerCommand('runConnectionAction', async (msg: any) => {
+			const { connectionName, actionId, options, extras } = msg.params ?? {}
+			if (!connectionName || !actionId) throw new Error('Missing connectionId or actionId')
+
+			// Special-case: internal actions are executed by the InternalModule (no wrapper/instance)
+			if (connectionName === 'internal') {
+				// Build a minimal SomeEntityModel for the internal action
+				const model = {
+					id: nanoid(),
+					connectionId: 'internal',
+					definitionId: actionId,
+					type: EntityModelType.Action,
+					options: options || {},
+					disabled: false,
+					// no children for actions
+				} as const
+
+				// Create a transient ControlEntityInstance so InternalModule gets what it expects
+				const inst = new ControlEntityInstance(
+					this.#registry.instance.definitions, // InstanceDefinitionsForEntity
+					this.#registry.internalModule, // InternalControllerForEntity
+					this.#registry.instance.processManager, // ProcessManagerForEntity (unused by internal)
+					'ws-internal', // synthetic control id
+					model as any, // SomeEntityModel
+					false // isCloned
+				)
+
+				await this.#registry.internalModule.executeAction(inst, {
+					...(extras ?? {}),
+					controlId: extras?.controlId ?? 'ws-direct',
+					surfaceId: extras?.surfaceId ?? 'ws-direct',
+					abortDelayed: new AbortController().signal,
+					executionMode: 'concurrent',
+				})
+
+				return { ok: true }
+			}
+
+			const connectionId = this.#registry.instance.getIdForLabel(connectionName)
+			if (!connectionId) throw new Error(`Unknown connection label: ${connectionName}`)
+
+			const instance = this.#registry.instance.processManager.getConnectionChild(connectionId)
+			if (!instance) throw new Error(`Connection not found: ${connectionId}`)
+
+			// Create a minimal ActionEntityModel-like object
+			const actionModel = {
+				id: `ws-${actionId}`,
+				connectionId,
+				definitionId: actionId,
+				type: EntityModelType.Action,
+				options: options || {},
+				disabled: false,
+			}
+
+			await instance.actionRun(actionModel as any, {
+				...(extras ?? {}),
+				controlId: extras?.controlId ?? 'ws-direct',
+				surfaceId: extras?.surfaceId ?? 'ws-direct',
+				abortDelayed: new AbortController().signal,
+				executionMode: 'concurrent',
+			})
+
+			return { ok: true }
+		})
+		ws.registerCommand('queryCustomControls', async () => {
+			const matches: {
+				controlId: string
+				definitionId: string
+				options: any
+				location: ControlLocation
+			}[] = []
+
+			this.#controls.forEach((control) => {
+				const data = control.getPythonButton()
+				if (data) {
+					matches.push(data)
+				}
+			})
+
+			return matches
+		})
 	}
 
 	#cleanUnknownTriggerCollectionIds(validCollectionIds: ReadonlySet<string>): void {
