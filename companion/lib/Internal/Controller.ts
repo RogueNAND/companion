@@ -115,6 +115,7 @@ export class InternalController {
 			fragment.on('checkFeedbacks', (...types) => this.#checkFeedbacks(...types))
 			fragment.on('checkFeedbacksById', (...ids) => this.checkFeedbacksById(...ids))
 			fragment.on('regenerateVariables', () => this.#regenerateVariables())
+			fragment.on('regenerateActions', () => this.#regenerateActions())
 			fragment.on('setVariables', (variables) => this.#setVariables(variables))
 		}
 

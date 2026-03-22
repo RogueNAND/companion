@@ -1,3 +1,4 @@
+import { ws } from './WebsocketBridge.js'
 import type { AppInfo } from '../Registry.js'
 import type { IPageStore } from '../Page/Store.js'
 import type { ControlsController } from '../Controls/Controller.js'
@@ -74,9 +75,27 @@ export class ServiceApi extends EventEmitter<ServiceApiEvents> {
 
 		this.#variablesController.values.on('variables_changed', (...args) => {
 			this.emit('variables_changed', ...args)
+			// args[0] = changedVars (Set<string>)
+			// args[1] = connectionLabels (Set<string>)
+			const changedVars = args[0]
+			if (!changedVars || typeof changedVars[Symbol.iterator] !== 'function') return
+
+			const list = Array.from(changedVars).filter((v): v is string => typeof v === 'string')
+			ws.broadcast(
+				'variablesChanged',
+				list.reduce<Record<string, Record<string, any>>>((acc, v) => {
+					const [conn, name] = v.split(/:(.+)/)
+					if (!conn || !name) return acc
+
+					const val = this.getConnectionVariableValue(conn, name)
+					if (val !== undefined) (acc[conn] ??= {})[name] = val
+					return acc
+				}, {})
+			)
 		})
 		this.#variablesController.custom.on('custom_variable_definition_changed', (...args) => {
 			this.emit('custom_variable_definition_changed', ...args)
+			ws.broadcast('custom_variable_definition_changed', JSON.stringify(args))
 		})
 
 		controlEvents.on('updateButtonState', (...args) => {
