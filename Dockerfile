@@ -1,6 +1,7 @@
 FROM node:22-bookworm AS companion-builder
 
 RUN corepack enable
+RUN corepack prepare yarn@4.12.0 --activate
 
 # Installation Prep
 RUN apt-get update && apt-get install -y \
@@ -8,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libudev-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN yarn config set httpTimeout 100000
+RUN yarn config set -H httpTimeout 100000
 
 WORKDIR /app
 COPY . /app/
